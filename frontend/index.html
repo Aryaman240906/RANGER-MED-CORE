@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ranger Med-Core</title>
+  </head>
+  <!-- Added inline styles to force dark theme immediately, even if Tailwind fails to load -->
+  <body class="bg-slate-950 text-white" style="background-color: #020617; color: white; margin: 0; display: flex; flex-direction: column; min-height: 100vh;">
+    <div id="root" style="flex: 1;">
+      <!-- This text shows only if React fails to mount -->
+      <div style="height: 100vh; display: flex; align-items: center; justify-content: center; font-family: monospace; color: #22d3ee;">
+        Initializing Ranger System... (If this stays, check Console)
+      </div>
+    </div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
