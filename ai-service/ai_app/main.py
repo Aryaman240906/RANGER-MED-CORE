@@ -1,7 +1,10 @@
 from fastapi import FastAPI
+from ai_app.routes import predict
 
-app = FastAPI()
+app = FastAPI(title="Ranger-Med-Core AI Service")
+
+app.include_router(predict.router, prefix="/api/ai")
 
 @app.get("/")
-def read_root():
-    return {"message": "AI Service is running"}
+async def root():
+    return {"ok": True, "service": "ai-service", "status": "ready"}

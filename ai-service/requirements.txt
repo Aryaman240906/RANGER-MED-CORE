@@ -1,6 +1,5 @@
-fastapi
-uvicorn
-scikit-learn
-pandas
-numpy
-pydantic
+fastapi==0.101.0
+uvicorn[standard]==0.22.0
+pydantic==2.5.1
+numpy==1.27.6
+scikit-learn==1.4.2
