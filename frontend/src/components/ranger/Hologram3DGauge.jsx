@@ -1,131 +1,153 @@
-// src/components/ranger/Hologram3DGauge.jsx
-import React, { useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text } from '@react-three/drei';
-import { motion } from 'framer-motion';
-import * as THREE from 'three';
+import React, { Suspense, useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { Html } from "@react-three/drei";
 
-// Rotating wireframe ring component
-const RotatingRing = () => {
+/**
+ * POWER-RANGER ATOMIC ENERGY CORE
+ * Plasma center + rotating electron rings + orbiting particles
+ */
+
+function ElectronOrbit({ radius, speed, tilt = [0, 0, 0], color }) {
   const ringRef = useRef();
-  const particlesRef = useRef();
+  const electronRef = useRef();
 
-  useFrame((state) => {
-    if (ringRef.current) {
-      ringRef.current.rotation.x += 0.005;
-      ringRef.current.rotation.y += 0.01;
-    }
-    if (particlesRef.current) {
-      particlesRef.current.rotation.y += 0.002;
-    }
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    ringRef.current.rotation.z = t * speed;
+    electronRef.current.position.x = Math.cos(t * speed * 2) * radius;
+    electronRef.current.position.y = Math.sin(t * speed * 2) * radius;
   });
 
-  // Create particles for hologram effect
-  const particlesCount = 100;
-  const particles = new Float32Array(particlesCount * 3);
-  
-  for (let i = 0; i < particlesCount * 3; i += 3) {
-    const radius = 2 + Math.random() * 2;
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.random() * Math.PI;
-    
-    particles[i] = radius * Math.sin(phi) * Math.cos(theta);
-    particles[i + 1] = radius * Math.sin(phi) * Math.sin(theta);
-    particles[i + 2] = radius * Math.cos(phi);
-  }
-
   return (
-    <group>
-      {/* Main rotating ring */}
+    <group rotation={tilt}>
+      {/* Glowing orbit ring */}
       <mesh ref={ringRef}>
-        <torusGeometry args={[2, 0.1, 8, 32]} />
-        <meshBasicMaterial 
-          color="#22d3ee" 
-          wireframe 
-          transparent 
-          opacity={0.8}
+        <torusGeometry args={[radius, 0.03, 12, 100]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={1.5}
+          roughness={0.2}
+          metalness={0.1}
         />
       </mesh>
 
-      {/* Inner ring */}
-      <mesh ref={ringRef}>
-        <torusGeometry args={[1.5, 0.05, 6, 24]} />
-        <meshBasicMaterial 
-          color="#3b82f6" 
-          wireframe 
-          transparent 
-          opacity={0.6}
-        />
-      </mesh>
-
-      {/* Particles */}
-      <points ref={particlesRef}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={particlesCount}
-            array={particles}
-            itemSize={3}
-          />
-        </bufferGeometry>
-        <pointsMaterial 
-          color="#22d3ee" 
-          size={0.02} 
-          transparent 
-          opacity={0.6}
-        />
-      </points>
-
-      {/* Central core */}
-      <mesh>
-        <sphereGeometry args={[0.3, 16, 16]} />
-        <meshBasicMaterial 
-          color="#22d3ee" 
-          transparent 
-          opacity={0.4}
-          wireframe
+      {/* Orbiting electron sphere */}
+      <mesh ref={electronRef}>
+        <sphereGeometry args={[0.09, 24, 24]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={2}
         />
       </mesh>
     </group>
   );
-};
+}
 
-const Hologram3DGauge = () => {
+function PlasmaCore({ stability }) {
+  const ref = useRef();
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    ref.current.scale.setScalar(1 + Math.sin(t * 3) * 0.1);
+    ref.current.rotation.y = t * 0.4;
+  });
+
+  // Color depends on stability
+  const color =
+    stability >= 70 ? "#22ff99" : stability >= 40 ? "#facc15" : "#ff5678";
+
   return (
-    <motion.div
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ duration: 0.8, ease: "easeOut" }}
-      className="bg-slate-900/50 backdrop-blur-sm border border-cyan-500/20 rounded-2xl p-6 hover:border-cyan-500/40 transition-all duration-300 h-80"
-    >
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
-        <h3 className="text-lg font-semibold text-white">3D Hologram</h3>
-      </div>
-
-      <div className="h-64 w-full">
-        <Canvas
-          camera={{ position: [5, 5, 5], fov: 50 }}
-          style={{ background: 'transparent' }}
-        >
-          <ambientLight intensity={0.2} />
-          <pointLight position={[10, 10, 10]} intensity={0.5} color="#22d3ee" />
-          <RotatingRing />
-          <OrbitControls 
-            enableZoom={false} 
-            enablePan={false}
-            autoRotate
-            autoRotateSpeed={1}
-          />
-        </Canvas>
-      </div>
-
-      <div className="text-center mt-4">
-        <div className="text-sm text-cyan-400 font-medium">Neural Interface</div>
-        <div className="text-xs text-slate-500">Active Monitoring</div>
-      </div>
-    </motion.div>
+    <mesh ref={ref}>
+      <sphereGeometry args={[0.55, 32, 32]} />
+      <meshStandardMaterial
+        color={color}
+        emissive={color}
+        emissiveIntensity={1.6}
+        metalness={0.3}
+        roughness={0.15}
+      />
+    </mesh>
   );
-};
+}
 
-export default Hologram3DGauge;
+function AtomicCoreGauge({ value }) {
+  return (
+    <>
+      <ambientLight intensity={0.8} />
+      <pointLight intensity={1.4} position={[3, 3, 3]} />
+
+      {/* Central plasma core */}
+      <PlasmaCore stability={value} />
+
+      {/* Three atomic orbit rings */}
+      <ElectronOrbit
+        radius={1.1}
+        speed={0.6}
+        tilt={[0, 0, 0]}
+        color="#22d3ee"
+      />
+      <ElectronOrbit
+        radius={1.1}
+        speed={0.6}
+        tilt={[1, 0.3, 0]}
+        color="#38bdf8"
+      />
+      <ElectronOrbit
+        radius={1.1}
+        speed={0.6}
+        tilt={[0.4, 1, 0]}
+        color="#67e8f9"
+      />
+
+      {/* Readable Text */}
+      <Html center>
+        <div
+          style={{
+            textAlign: "center",
+            color: "white",
+            fontWeight: 700,
+            textShadow: "0 0 8px rgba(0,0,0,0.8)",
+            userSelect: "none",
+          }}
+        >
+          <div style={{ fontSize: "26px" }}>{value}%</div>
+          <div
+            style={{
+              fontSize: "11px",
+              letterSpacing: "1px",
+              opacity: 0.9,
+              marginTop: "2px",
+            }}
+          >
+            STABILITY
+          </div>
+        </div>
+      </Html>
+    </>
+  );
+}
+
+export default function Hologram3DGauge({ value = 76, size = 260 }) {
+  return (
+    <div
+      style={{ width: size, height: size }}
+      className="rounded-2xl overflow-hidden bg-slate-900/40 backdrop-blur-md border border-cyan-500/20 shadow-[0_0_25px_rgba(34,211,238,0.15)]"
+    >
+      <Canvas camera={{ position: [0, 0, 4.5], fov: 48 }}>
+        <Suspense
+          fallback={
+            <Html center>
+              <div className="text-cyan-200 text-sm animate-pulse">
+                Initializing Core…
+              </div>
+            </Html>
+          }
+        >
+          <AtomicCoreGauge value={value} />
+        </Suspense>
+      </Canvas>
+    </div>
+  );
+}
