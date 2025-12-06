@@ -1,89 +1,111 @@
 // src/components/ranger/ReadinessBar.jsx
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Zap } from 'lucide-react';
+import React, { useMemo } from "react";
+import { motion } from "framer-motion";
+import { Zap, AlertTriangle, CheckCircle } from "lucide-react";
 
 const ReadinessBar = ({ value = 0 }) => {
-  const getStatusText = (val) => {
-    if (val >= 90) return 'Optimal';
-    if (val >= 70) return 'Ready';
-    if (val >= 50) return 'Moderate';
-    return 'Low';
-  };
+  // CONFIG: 20 segments for the bar
+  const totalSegments = 20;
+  const activeSegments = Math.round((value / 100) * totalSegments);
 
-  const getBarColor = (val) => {
-    if (val >= 80) return 'from-green-400 to-emerald-500';
-    if (val >= 60) return 'from-yellow-400 to-orange-500';
-    return 'from-red-400 to-pink-500';
-  };
+  // 🎨 DYNAMIC STATUS COLORS & ICONS
+  const statusConfig = useMemo(() => {
+    if (value >= 80) return { 
+      label: "COMBAT READY", 
+      color: "bg-cyan-400", 
+      glow: "shadow-[0_0_12px_#22d3ee]", 
+      icon: CheckCircle, 
+      text: "text-cyan-400" 
+    };
+    if (value >= 50) return { 
+      label: "CAUTION", 
+      color: "bg-yellow-400", 
+      glow: "shadow-[0_0_12px_#facc15]", 
+      icon: AlertTriangle, 
+      text: "text-yellow-400" 
+    };
+    return { 
+      label: "CRITICAL", 
+      color: "bg-red-500", 
+      glow: "shadow-[0_0_15px_#ef4444]", 
+      icon: Zap, 
+      text: "text-red-500" 
+    };
+  }, [value]);
+
+  const StatusIcon = statusConfig.icon;
 
   return (
-    <motion.div
-      initial={{ x: -50, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-      className="bg-slate-900/50 backdrop-blur-sm border border-cyan-500/20 rounded-2xl p-6 hover:border-cyan-500/40 transition-all duration-300"
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="w-full p-5 bg-slate-900/60 border border-slate-700/50 rounded-2xl backdrop-blur-md flex flex-col gap-3 relative overflow-hidden h-full justify-center"
     >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-          <Zap className="w-5 h-5 text-cyan-400" />
-          Readiness
-        </h3>
-        <div className="text-right">
-          <div className="text-2xl font-bold text-cyan-400">{value}%</div>
-          <div className="text-sm text-slate-400">{getStatusText(value)}</div>
+      
+      {/* 🛡️ HEADER ROW */}
+      <div className="flex justify-between items-end">
+        <div className="flex items-center gap-2">
+          <StatusIcon size={16} className={statusConfig.text} />
+          <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 font-bold">
+            Mission Readiness
+          </span>
+        </div>
+        
+        {/* Numeric Value */}
+        <div className="flex items-baseline gap-1">
+           <motion.span 
+             key={value} // Re-animate on number change
+             initial={{ opacity: 0.5, scale: 0.9 }}
+             animate={{ opacity: 1, scale: 1 }}
+             className={`text-2xl font-bold font-mono tracking-tighter ${statusConfig.text}`}
+           >
+             {Math.round(value)}
+           </motion.span>
+           <span className="text-xs text-slate-500 font-mono">/100</span>
         </div>
       </div>
 
-      <div className="space-y-3">
-        {/* Main Progress Bar */}
-        <div className="relative h-4 bg-slate-800 rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${value}%` }}
-            transition={{ duration: 1.5, ease: "easeInOut" }}
-            className={`h-full bg-gradient-to-r ${getBarColor(value)} relative`}
-          >
-            {/* Animated shine effect */}
+      {/* 🔋 SEGMENTED BAR CONTAINER */}
+      <div className="relative h-6 w-full bg-slate-950 rounded-md border border-slate-800 flex items-center p-1 gap-0.5 overflow-hidden shadow-inner">
+        
+        {/* Render 20 individual segments */}
+        {Array.from({ length: totalSegments }).map((_, i) => {
+          const isActive = i < activeSegments;
+          return (
             <motion.div
-              animate={{ x: ['0%', '100%'] }}
-              transition={{ 
-                duration: 2, 
-                repeat: Infinity, 
-                ease: "linear" 
+              key={i}
+              initial={false}
+              animate={{
+                opacity: isActive ? 1 : 0.2,
+                backgroundColor: isActive ? (value >= 80 ? "#22d3ee" : value >= 50 ? "#facc15" : "#ef4444") : "#334155"
               }}
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent w-1/3"
+              transition={{ duration: 0.3, delay: i * 0.01 }} // Stagger effect for liquid fill
+              className={`h-full flex-1 rounded-[1px] transition-all duration-300 ${isActive ? statusConfig.glow : ""}`}
             />
-          </motion.div>
-          
-          {/* Glow effect */}
-          <div className={`absolute inset-0 bg-gradient-to-r ${getBarColor(value)} blur-sm opacity-30`} 
-               style={{ width: `${value}%` }} />
-        </div>
+          );
+        })}
 
-        {/* Mini indicators */}
-        <div className="flex justify-between text-xs text-slate-500">
-          <span>0</span>
-          <span>25</span>
-          <span>50</span>
-          <span>75</span>
-          <span>100</span>
+        {/* 🔦 SCANLINE EFFECT (Light passing through) */}
+        <motion.div
+          animate={{ x: ["-100%", "200%"] }}
+          transition={{ repeat: Infinity, duration: 2.5, ease: "linear", repeatDelay: 0.5 }}
+          className="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-12 pointer-events-none"
+        />
+      </div>
+
+      {/* 📝 FOOTER STATUS TEXT */}
+      <div className="flex justify-between items-center mt-1">
+        <div className={`text-[9px] font-bold font-mono tracking-widest px-2 py-0.5 rounded bg-slate-950/50 border border-slate-800 uppercase ${statusConfig.text}`}>
+          Condition: {statusConfig.label}
+        </div>
+        
+        {/* Decorative Grid Dots */}
+        <div className="flex gap-1 opacity-50">
+           {[1,2,3,4].map(d => <div key={d} className="w-1 h-1 rounded-full bg-slate-600" />)}
         </div>
       </div>
 
-      {/* Pulse animation for high readiness */}
-      {value >= 80 && (
-        <motion.div
-          animate={{ 
-            boxShadow: [
-              '0 0 0 0 rgba(34, 211, 238, 0.4)',
-              '0 0 0 10px rgba(34, 211, 238, 0)',
-            ]
-          }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-          className="absolute inset-0 rounded-2xl pointer-events-none"
-        />
-      )}
     </motion.div>
   );
 };

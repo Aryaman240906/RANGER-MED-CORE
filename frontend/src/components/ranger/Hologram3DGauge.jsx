@@ -1,151 +1,156 @@
-import React, { Suspense, useRef } from "react";
+// src/components/ranger/Hologram3DGauge.jsx
+import React, { useRef, useMemo, Suspense } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Html } from "@react-three/drei";
+import { Html, Torus, Sphere } from "@react-three/drei";
+import * as THREE from "three";
 
 /**
- * POWER-RANGER ATOMIC ENERGY CORE
- * Plasma center + rotating electron rings + orbiting particles
+ * 🎨 Dynamic Color Logic
+ * Returns a Three.js Color object based on stability percentage.
  */
+const getStatusColor = (value) => {
+  if (value > 70) return new THREE.Color("#22d3ee"); // Cyan (Stable)
+  if (value > 40) return new THREE.Color("#facc15"); // Amber (Warning)
+  return new THREE.Color("#ef4444"); // Red (Critical)
+};
 
-function ElectronOrbit({ radius, speed, tilt = [0, 0, 0], color }) {
-  const ringRef = useRef();
-  const electronRef = useRef();
+/**
+ * 💍 Atomic Ring Component
+ * A single rotating ring that reacts to stability speed.
+ */
+const AtomicRing = ({ radius, speed, axis, stability }) => {
+  const meshRef = useRef();
+  
+  // ⚡ CHAOS FACTOR:
+  // Stability 100 = 1x speed (Calm)
+  // Stability 0   = 5x speed (Chaotic)
+  const rotationFactor = 1 + (100 - stability) / 20;
 
-  useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
-    ringRef.current.rotation.z = t * speed;
-    electronRef.current.position.x = Math.cos(t * speed * 2) * radius;
-    electronRef.current.position.y = Math.sin(t * speed * 2) * radius;
+  useFrame((state, delta) => {
+    if (!meshRef.current) return;
+    
+    // Rotate around the provided axis
+    meshRef.current.rotation.x += delta * speed * rotationFactor * axis[0];
+    meshRef.current.rotation.y += delta * speed * rotationFactor * axis[1];
+    meshRef.current.rotation.z += delta * speed * rotationFactor * axis[2];
   });
 
-  return (
-    <group rotation={tilt}>
-      {/* Glowing orbit ring */}
-      <mesh ref={ringRef}>
-        <torusGeometry args={[radius, 0.03, 12, 100]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={1.5}
-          roughness={0.2}
-          metalness={0.1}
-        />
-      </mesh>
-
-      {/* Orbiting electron sphere */}
-      <mesh ref={electronRef}>
-        <sphereGeometry args={[0.09, 24, 24]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={2}
-        />
-      </mesh>
-    </group>
-  );
-}
-
-function PlasmaCore({ stability }) {
-  const ref = useRef();
-
-  useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
-    ref.current.scale.setScalar(1 + Math.sin(t * 3) * 0.1);
-    ref.current.rotation.y = t * 0.4;
-  });
-
-  // Color depends on stability
-  const color =
-    stability >= 70 ? "#22ff99" : stability >= 40 ? "#facc15" : "#ff5678";
+  const color = useMemo(() => getStatusColor(stability), [stability]);
 
   return (
-    <mesh ref={ref}>
-      <sphereGeometry args={[0.55, 32, 32]} />
+    <Torus ref={meshRef} args={[radius, 0.06, 16, 100]}>
       <meshStandardMaterial
         color={color}
         emissive={color}
-        emissiveIntensity={1.6}
-        metalness={0.3}
-        roughness={0.15}
+        emissiveIntensity={2} // Intense Neon Glow
+        transparent
+        opacity={0.6}
+        roughness={0.1}
+        metalness={0.8}
+        wireframe={false}
       />
-    </mesh>
+    </Torus>
   );
-}
+};
 
-function AtomicCoreGauge({ value }) {
+/**
+ * ⚛️ Central Core Component
+ * The pulsing orb in the center.
+ */
+const CoreOrb = ({ stability }) => {
+  const meshRef = useRef();
+  const color = useMemo(() => getStatusColor(stability), [stability]);
+
+  useFrame((state) => {
+    // Pulse effect: Breathing animation
+    const t = state.clock.getElapsedTime();
+    // Pulse faster if unstable
+    const pulseSpeed = stability < 50 ? 8 : 3; 
+    const scale = 1 + Math.sin(t * pulseSpeed) * 0.1;
+    
+    if (meshRef.current) {
+      meshRef.current.scale.set(scale, scale, scale);
+    }
+  });
+
+  return (
+    <Sphere ref={meshRef} args={[0.7, 32, 32]}>
+      <meshStandardMaterial
+        color={color}
+        emissive={color}
+        emissiveIntensity={3} // Very bright core
+        transparent
+        opacity={0.9}
+        roughness={0}
+        metalness={0.5}
+      />
+    </Sphere>
+  );
+};
+
+/**
+ * 🌌 Main Scene Layout
+ */
+const HologramScene = ({ stability }) => {
+  // Get color for text
+  const colorHex = getStatusColor(stability).getStyle();
+
   return (
     <>
-      <ambientLight intensity={0.8} />
-      <pointLight intensity={1.4} position={[3, 3, 3]} />
+      <ambientLight intensity={0.5} />
+      <pointLight position={[10, 10, 10]} intensity={1.5} />
+      
+      {/* 3 Nested Rings spinning on different axes */}
+      <AtomicRing radius={2.8} speed={0.4} axis={[1, 0.5, 0]} stability={stability} />
+      <AtomicRing radius={2.0} speed={0.6} axis={[0, 1, 0.5]} stability={stability} />
+      <AtomicRing radius={1.4} speed={0.8} axis={[0.5, 0, 1]} stability={stability} />
+      
+      {/* Center Core */}
+      <CoreOrb stability={stability} />
 
-      {/* Central plasma core */}
-      <PlasmaCore stability={value} />
-
-      {/* Three atomic orbit rings */}
-      <ElectronOrbit
-        radius={1.1}
-        speed={0.6}
-        tilt={[0, 0, 0]}
-        color="#22d3ee"
-      />
-      <ElectronOrbit
-        radius={1.1}
-        speed={0.6}
-        tilt={[1, 0.3, 0]}
-        color="#38bdf8"
-      />
-      <ElectronOrbit
-        radius={1.1}
-        speed={0.6}
-        tilt={[0.4, 1, 0]}
-        color="#67e8f9"
-      />
-
-      {/* Readable Text */}
-      <Html center>
-        <div
-          style={{
-            textAlign: "center",
-            color: "white",
-            fontWeight: 700,
-            textShadow: "0 0 8px rgba(0,0,0,0.8)",
-            userSelect: "none",
-          }}
-        >
-          <div style={{ fontSize: "26px" }}>{value}%</div>
-          <div
-            style={{
-              fontSize: "11px",
-              letterSpacing: "1px",
-              opacity: 0.9,
-              marginTop: "2px",
-            }}
+      {/* Floating HTML Label */}
+      <Html position={[0, -3.5, 0]} center zIndexRange={[100, 0]}>
+        <div className="flex flex-col items-center pointer-events-none select-none">
+          <div 
+            className="text-2xl font-bold font-mono tracking-widest drop-shadow-[0_0_8px_rgba(0,0,0,0.8)]" 
+            style={{ color: colorHex }}
           >
-            STABILITY
+            {Math.round(stability)}%
+          </div>
+          <div className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-bold mt-1">
+            CORE SYNC
           </div>
         </div>
       </Html>
     </>
   );
-}
+};
 
-export default function Hologram3DGauge({ value = 76, size = 260 }) {
+/**
+ * 📦 Default Export
+ */
+export default function Hologram3DGauge({ stability = 100, value }) {
+  // Handle prop mismatch: Component might receive 'value' or 'stability'
+  const finalValue = stability !== undefined ? stability : (value || 100);
+
   return (
-    <div
-      style={{ width: size, height: size }}
-      className="rounded-2xl overflow-hidden bg-slate-900/40 backdrop-blur-md border border-cyan-500/20 shadow-[0_0_25px_rgba(34,211,238,0.15)]"
-    >
-      <Canvas camera={{ position: [0, 0, 4.5], fov: 48 }}>
-        <Suspense
-          fallback={
-            <Html center>
-              <div className="text-cyan-200 text-sm animate-pulse">
-                Initializing Core…
-              </div>
-            </Html>
-          }
-        >
-          <AtomicCoreGauge value={value} />
+    <div className="w-full h-full min-h-[250px] relative rounded-xl overflow-hidden bg-slate-900/40 border border-slate-800/50 backdrop-blur-md shadow-inner">
+      
+      {/* 🌌 BACKGROUND EFFECTS */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.05),transparent_70%)] pointer-events-none" />
+      
+      {/* Grid Overlay for "Scanner" look */}
+      <div 
+        className="absolute inset-0 opacity-10 pointer-events-none" 
+        style={{ 
+          backgroundImage: 'linear-gradient(#22d3ee 1px, transparent 1px), linear-gradient(90deg, #22d3ee 1px, transparent 1px)', 
+          backgroundSize: '30px 30px' 
+        }}
+      />
+
+      <Canvas camera={{ position: [0, 0, 8], fov: 45 }} dpr={[1, 2]}>
+        <Suspense fallback={null}>
+          <HologramScene stability={finalValue} />
         </Suspense>
       </Canvas>
     </div>

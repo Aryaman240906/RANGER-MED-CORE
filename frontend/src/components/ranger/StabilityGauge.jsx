@@ -1,93 +1,104 @@
 // src/components/ranger/StabilityGauge.jsx
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Activity } from 'lucide-react';
+import React, { useMemo } from "react";
+import { motion } from "framer-motion";
+import { TrendingUp, TrendingDown, Activity, Minus } from "lucide-react";
 
-const StabilityGauge = ({ value = 0 }) => {
-  const radius = 80;
+const StabilityGauge = ({ value = 0, trend = "Stable" }) => {
+  // --- CONFIGURATION ---
+  const radius = 65; // Slightly adjusted size to fit HUD elements
   const strokeWidth = 8;
   const normalizedRadius = radius - strokeWidth * 2;
   const circumference = normalizedRadius * 2 * Math.PI;
-  const strokeDasharray = `${circumference} ${circumference}`;
   const strokeDashoffset = circumference - (value / 100) * circumference;
 
-  const getStatusColor = (val) => {
-    if (val >= 80) return 'text-green-400';
-    if (val >= 60) return 'text-yellow-400';
-    return 'text-red-400';
-  };
-
-  const getGlowColor = (val) => {
-    if (val >= 80) return 'drop-shadow-[0_0_15px_rgba(34,197,94,0.6)]';
-    if (val >= 60) return 'drop-shadow-[0_0_15px_rgba(234,179,8,0.6)]';
-    return 'drop-shadow-[0_0_15px_rgba(239,68,68,0.6)]';
-  };
+  // --- DYNAMIC COLOR LOGIC (Ranger Palette) ---
+  const statusConfig = useMemo(() => {
+    if (value >= 80) return { color: "#22d3ee", text: "text-cyan-400", glow: "drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]" }; // Stable
+    if (value >= 50) return { color: "#facc15", text: "text-yellow-400", glow: "drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]" }; // Caution
+    return { color: "#ef4444", text: "text-red-500", glow: "drop-shadow-[0_0_15px_rgba(239,68,68,0.6)]" }; // Critical
+  }, [value]);
 
   return (
     <motion.div
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-      className="bg-slate-900/50 backdrop-blur-sm border border-cyan-500/20 rounded-2xl p-6 hover:border-cyan-500/40 transition-all duration-300"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5 }}
+      className="relative flex flex-col items-center justify-center p-6 bg-slate-900/60 border border-slate-700/50 rounded-2xl backdrop-blur-md overflow-hidden h-full min-h-[240px]"
     >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-          <Activity className="w-5 h-5 text-cyan-400" />
-          Stability
-        </h3>
-        <div className={`text-2xl font-bold ${getStatusColor(value)}`}>
-          {value}%
-        </div>
+      
+      {/* 🛡️ HUD DECORATIONS (Corners) */}
+      <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-cyan-500/50 rounded-tl-lg m-2" />
+      <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-cyan-500/50 rounded-tr-lg m-2" />
+      <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-cyan-500/50 rounded-bl-lg m-2" />
+      <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-cyan-500/50 rounded-br-lg m-2" />
+
+      {/* HEADER LABEL */}
+      <div className="absolute top-4 left-6 flex items-center gap-2">
+        <Activity size={14} className={statusConfig.text} />
+        <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 font-bold">
+          Neural Stability
+        </span>
       </div>
 
-      <div className="flex items-center justify-center">
-        <div className="relative">
-          <svg
-            height={radius * 2}
-            width={radius * 2}
-            className="transform -rotate-90"
-          >
-            {/* Background circle */}
-            <circle
-              stroke="rgba(148, 163, 184, 0.2)"
-              fill="transparent"
-              strokeWidth={strokeWidth}
-              r={normalizedRadius}
-              cx={radius}
-              cy={radius}
-            />
-            {/* Progress circle */}
-            <motion.circle
-              stroke="currentColor"
-              fill="transparent"
-              strokeWidth={strokeWidth}
-              strokeDasharray={strokeDasharray}
-              strokeLinecap="round"
-              r={normalizedRadius}
-              cx={radius}
-              cy={radius}
-              initial={{ strokeDashoffset: circumference }}
-              animate={{ strokeDashoffset }}
-              transition={{ duration: 1.5, ease: "easeInOut" }}
-              className={`${getStatusColor(value)} ${getGlowColor(value)}`}
-            />
-          </svg>
+      {/* 🌀 GAUGE CONTAINER */}
+      <div className="relative flex items-center justify-center mt-4">
+        
+        {/* Background Rotating Ring (Sci-Fi Effect) */}
+        <div className="absolute inset-[-12px] border border-slate-800 rounded-full opacity-40" />
+        <div className="absolute inset-[-4px] border border-dashed border-slate-700 rounded-full animate-[spin_12s_linear_infinite] opacity-30" />
+
+        <svg
+          height={radius * 2}
+          width={radius * 2}
+          className="transform -rotate-90 overflow-visible"
+        >
+          {/* Static Background Track */}
+          <circle
+            stroke="rgba(30, 41, 59, 0.5)"
+            strokeWidth={strokeWidth}
+            r={normalizedRadius}
+            cx={radius}
+            cy={radius}
+            fill="transparent"
+          />
           
-          {/* Center content */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.5, duration: 0.3 }}
-              className="text-center"
-            >
-              <div className={`text-3xl font-bold ${getStatusColor(value)}`}>
-                {value}
-              </div>
-              <div className="text-xs text-slate-400 uppercase tracking-wide">
-                Stable
-              </div>
-            </motion.div>
+          {/* Animated Progress Ring */}
+          <motion.circle
+            stroke={statusConfig.color}
+            fill="transparent"
+            strokeWidth={strokeWidth}
+            strokeDasharray={circumference + " " + circumference}
+            strokeLinecap="round"
+            r={normalizedRadius}
+            cx={radius}
+            cy={radius}
+            initial={{ strokeDashoffset: circumference }}
+            animate={{ strokeDashoffset }}
+            transition={{ duration: 0.6, ease: "easeOut" }} // Fast smooth tween
+            className={statusConfig.glow}
+          />
+        </svg>
+        
+        {/* 🔢 CENTER CONTENT */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <motion.div
+            key={value} // Micro-animation on value change
+            initial={{ scale: 0.95, opacity: 0.8 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className={`text-4xl font-bold font-mono tracking-tighter ${statusConfig.text}`}
+          >
+            {Math.round(value)}%
+          </motion.div>
+
+          {/* TREND PILL */}
+          <div className="flex items-center gap-1 mt-2 px-3 py-1 rounded-full bg-slate-950/80 border border-slate-800">
+            {trend === "Improving" && <TrendingUp size={12} className="text-emerald-400" />}
+            {trend === "Declining" && <TrendingDown size={12} className="text-red-400" />}
+            {trend === "Stable" && <Minus size={12} className="text-slate-400" />}
+            
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wide">
+              {trend}
+            </span>
           </div>
         </div>
       </div>
