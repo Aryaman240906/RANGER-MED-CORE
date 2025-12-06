@@ -1,6 +1,8 @@
+// src/pages/Login.jsx
 import React, { useState } from "react";
 import { useAuthStore } from "../store/authStore";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -11,17 +13,25 @@ function Login() {
 
   const navigate = useNavigate();
 
-  // 🔹 REAL LOGIN SUBMISSION HANDLER
+  // 🔹 FIXED LOGIN HANDLER (NO BLOCKING ALERTS)
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const success = await login(email, password);
 
     if (success) {
-      alert("Login successful — redirecting to dashboard!");
-      navigate("/dashboard");
+      toast.success("Identity Verified — Welcome Ranger.", {
+        style: {
+          background: "#0F172A",
+          color: "#22D3EE",
+          border: "1px solid #22D3EE",
+        },
+      });
+
+      // 🔹 Small delay so toast is visible
+      setTimeout(() => navigate("/dashboard"), 350);
     } else {
-      alert("Invalid credentials. Try again.");
+      toast.error("Invalid credentials. Try again.");
     }
   };
 

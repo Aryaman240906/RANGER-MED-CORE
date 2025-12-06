@@ -1,53 +1,44 @@
+// src/App.jsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "./store/authStore";
 
-// Pages
-import Login from "./pages/login.jsx";
-import Register from "./pages/register.jsx";
+// Corrected imports (CASE SENSITIVE)
+import Login from "./pages/Login.jsx";
+import Register from "./pages/Register.jsx";
+import RangerDashboard from "./pages/RangerDashboard.jsx";
 
-// Temporary simple dashboard for testing
-const Dashboard = () => {
-  const { user, logout } = useAuthStore();
-  return (
-    <div className="min-h-screen bg-slate-950 text-white p-8">
-      <h1 className="text-3xl font-bold text-cyan-400">Welcome, {user?.name}</h1>
-      <p className="text-slate-400 mt-2">Role: {user?.role?.toUpperCase()}</p>
-      <button
-        onClick={logout}
-        className="mt-8 bg-red-500/20 text-red-400 px-4 py-2 rounded hover:bg-red-500/30"
-      >
-        Logout
-      </button>
-    </div>
-  );
-};
-
+// Protected Route
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
 export default function App() {
   return (
     <Router>
       <Toaster position="top-right" />
-      <Routes>
-        <Route path="/" element={<Navigate to="/login" />} />
 
+      <Routes>
+        {/* Default → Login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
+        {/* Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
+        {/* Protected: Ranger Dashboard */}
         <Route
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <RangerDashboard />
             </ProtectedRoute>
           }
         />
 
-        <Route path="*" element={<Navigate to="/login" />} />
+        {/* Catch all → Login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
   );
