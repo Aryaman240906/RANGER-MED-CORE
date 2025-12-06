@@ -7,7 +7,7 @@ const xss = require('xss-clean');
 const rateLimit = require('express-rate-limit');
 const hpp = require('hpp');
 const cookieParser = require('cookie-parser');
-
+const predictionRoutes = require('./routes/prediction.routes');
 const { connectDB } = require('./config/db');
 
 const { PORT, NODE_ENV, CLIENT_ORIGIN } = require('./config/env');
@@ -36,7 +36,7 @@ app.use(helmet());
 app.use(cookieParser());
 app.use(express.json({ limit: '15kb' })); // safer limit
 app.use(express.urlencoded({ extended: false }));
-
+app.use('/api/prediction', predictionRoutes);
 // Sanitizers
 app.use(mongoSanitize());
 app.use(xss());

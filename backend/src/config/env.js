@@ -32,7 +32,7 @@ module.exports = {
   PORT: process.env.PORT ? process.env.PORT.trim() : 5000,
   NODE_ENV: process.env.NODE_ENV ? process.env.NODE_ENV.trim() : "development",
 
-  // Database — Works for MongoDB Atlas cluster
+  // Database — Works for MongoDB Atlas
   MONGO_URI: ensureEnv("MONGO_URI"),
 
   // Auth
@@ -41,13 +41,19 @@ module.exports = {
     ? process.env.JWT_EXPIRE.trim()
     : "30d",
 
-  // CORS Frontend
+  // Frontend CORS
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN
     ? process.env.CLIENT_ORIGIN.trim()
     : "http://localhost:5173",
 
-  // Optional Redis (future phases)
+  // Redis (Phase 9)
   REDIS_URL: process.env.REDIS_URL
     ? process.env.REDIS_URL.trim()
     : "redis://127.0.0.1:6379",
+
+  // ⭐ NEW — AI SERVICE URL (added for Phase 3)
+  AI_SERVICE_URL: process.env.AI_SERVICE_URL
+    ? process.env.AI_SERVICE_URL.trim()
+    : "http://localhost:8000",
 };
+
