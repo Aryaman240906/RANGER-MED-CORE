@@ -1,14 +1,35 @@
-// src/pages/RangerDashboard.jsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Toaster } from "react-hot-toast";
+import { Toaster, toast } from "react-hot-toast";
 
-// FIXED: Correct import path + correct casing
-import Dashboard from "../components/ranger/Dashboard"; 
+// Components
+import Dashboard from "../components/ranger/Dashboard";
+import BottomTabNav from "../components/global/BottomTabNav";
+import MobileDoseModal from "../components/ranger/MobileDoseModal";
+import MobileSymptomModal from "../components/ranger/MobileSymptomModal";
 
 const RangerDashboard = () => {
+  // State for Mobile Modals
+  const [doseOpen, setDoseOpen] = useState(false);
+  const [symOpen, setSymOpen] = useState(false);
+
+  // Listener for Sync Worker events (Optional: notifies when data hits the backend)
+  useEffect(() => {
+    const handleSync = (e) => {
+      // e.detail comes from the custom event dispatched in registerSyncWorker
+      if (e.detail?.type === "synced") {
+        // Use a unique ID to prevent toast spam if multiple items sync at once
+        toast.success("Data synced with Command.", { id: "sync-success" });
+      }
+    };
+
+    window.addEventListener("syncworker", handleSync);
+    return () => window.removeEventListener("syncworker", handleSync);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-slate-950 relative overflow-hidden">
+    // Added 'pb-24' to ensure content isn't hidden behind the fixed Bottom Nav
+    <div className="min-h-screen bg-slate-950 relative overflow-hidden pb-24">
       
       {/* --- BACKGROUND LAYERS --- */}
       {/* Soft radial highlight */}
@@ -22,7 +43,7 @@ const RangerDashboard = () => {
         }}
       />
 
-      {/* --- CONTENT --- */}
+      {/* --- MAIN CONTENT --- */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
@@ -32,17 +53,28 @@ const RangerDashboard = () => {
         <Dashboard />
       </motion.div>
 
+      {/* --- MOBILE OVERLAYS & NAV --- */}
+      {/* These render on top of everything */}
+      <MobileDoseModal open={doseOpen} onClose={() => setDoseOpen(false)} />
+      <MobileSymptomModal open={symOpen} onClose={() => setSymOpen(false)} />
+
+      <BottomTabNav 
+        onOpenDose={() => setDoseOpen(true)} 
+        onOpenSymptom={() => setSymOpen(true)} 
+      />
+
       {/* --- TOAST NOTIFICATIONS --- */}
       <Toaster
         position="top-right"
         toastOptions={{
           duration: 4000,
           style: {
-            background: "rgba(15,23,42,0.8)",
+            background: "rgba(15,23,42,0.9)",
             color: "#e0faff",
             border: "1px solid rgba(34,211,238,0.35)",
-            borderRadius: "10px",
-            backdropFilter: "blur(6px)",
+            borderRadius: "12px",
+            backdropFilter: "blur(10px)",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
           },
         }}
       />
