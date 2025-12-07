@@ -3,11 +3,11 @@ import React, { useMemo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   CheckCircle, AlertTriangle, Info, 
-  Zap, Clock, ShieldAlert, Activity, FileText 
+  Zap, Clock, ShieldAlert, Activity, FileText, Pill 
 } from "lucide-react";
 
 /**
- * 🎨 TACTICAL EVENT STYLES
+ * 🎨 TACTICAL EVENT STYLES (Expanded Map)
  */
 const getEventStyle = (type) => {
   switch (type) {
@@ -16,59 +16,74 @@ const getEventStyle = (type) => {
         icon: CheckCircle, 
         color: "text-emerald-400", 
         border: "border-emerald-500/30",
-        shadow: "shadow-[0_0_10px_rgba(16,185,129,0.1)]",
-        bg: "bg-emerald-900/10"
+        bg: "bg-emerald-900/10",
+        shadow: "shadow-[0_0_10px_rgba(16,185,129,0.1)]"
+      };
+    case "dose": // 💊 NEW: Capsule Intake
+      return { 
+        icon: Pill, 
+        color: "text-cyan-400", 
+        border: "border-cyan-500/30", 
+        bg: "bg-cyan-900/10",
+        shadow: "shadow-[0_0_15px_rgba(34,211,238,0.2)]"
+      };
+    case "symptom": // 🧬 NEW: Bio-Logs
+      return { 
+        icon: Activity, 
+        color: "text-fuchsia-400", 
+        border: "border-fuchsia-500/30", 
+        bg: "bg-fuchsia-900/10",
+        shadow: "shadow-[0_0_10px_rgba(232,121,249,0.1)]"
+      };
+    case "alert": // 🚨 NEW: Security Alerts
+    case "danger":
+      return { 
+        icon: ShieldAlert, 
+        color: "text-red-400", 
+        border: "border-red-500/40", 
+        bg: "bg-red-900/10",
+        shadow: "shadow-[0_0_15px_rgba(248,113,113,0.3)]"
       };
     case "warning":
       return { 
         icon: AlertTriangle, 
         color: "text-amber-400", 
-        border: "border-amber-500/30",
-        shadow: "shadow-[0_0_10px_rgba(251,191,36,0.1)]",
-        bg: "bg-amber-900/10"
-      };
-    case "danger":
-      return { 
-        icon: ShieldAlert, 
-        color: "text-red-400", 
-        border: "border-red-500/40",
-        shadow: "shadow-[0_0_15px_rgba(248,113,113,0.2)]",
-        bg: "bg-red-900/10"
-      };
-    case "capsule": 
-      return { 
-        icon: Zap, 
-        color: "text-cyan-400", 
-        border: "border-cyan-500/30",
-        shadow: "shadow-[0_0_10px_rgba(34,211,238,0.1)]",
-        bg: "bg-cyan-900/10"
+        border: "border-amber-500/30", 
+        bg: "bg-amber-900/10",
+        shadow: "shadow-[0_0_10px_rgba(251,191,36,0.1)]"
       };
     default:
       return { 
         icon: Info, 
         color: "text-slate-400", 
-        border: "border-slate-700",
-        shadow: "shadow-none",
-        bg: "bg-slate-800/20"
+        border: "border-slate-700", 
+        bg: "bg-slate-800/20",
+        shadow: "shadow-none"
       };
   }
 };
 
-export default function Timeline({ events = [] }) {
+export default function Timeline({ events = [], filter = "all" }) {
   const scrollRef = useRef(null);
   
-  // 📊 Auto-scroll to top when new events arrive
+  // 📊 Auto-scroll to top
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = 0;
     }
   }, [events]);
 
+  // 🔍 Local Filtering (Optional prop based filtering)
+  const filteredEvents = useMemo(() => {
+    if (filter === "all") return events;
+    return events.filter(e => e.type === filter);
+  }, [events, filter]);
+
   // 📊 Stats Calculation
   const stats = useMemo(() => ({
-    success: events.filter(e => e.type === 'success').length,
-    alerts: events.filter(e => e.type === 'warning' || e.type === 'danger').length,
-    total: events.length
+    doses: events.filter(e => e.type === 'dose').length,
+    logs: events.filter(e => e.type === 'symptom').length,
+    alerts: events.filter(e => e.type === 'alert' || e.type === 'danger').length
   }), [events]);
 
   return (
@@ -98,7 +113,7 @@ export default function Timeline({ events = [] }) {
         className="flex-1 relative overflow-y-auto custom-scrollbar p-4 space-y-0 scroll-smooth"
       >
         {/* Empty State */}
-        {events.length === 0 && (
+        {filteredEvents.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-slate-600 space-y-3 opacity-50">
             <Activity size={32} className="text-cyan-900" />
             <span className="text-xs font-mono uppercase tracking-widest text-cyan-800">
@@ -108,12 +123,12 @@ export default function Timeline({ events = [] }) {
         )}
 
         {/* The Neon Rail */}
-        {events.length > 0 && (
+        {filteredEvents.length > 0 && (
            <div className="absolute left-[23px] top-4 bottom-0 w-[1px] bg-gradient-to-b from-cyan-500/50 via-slate-800 to-transparent" />
         )}
 
         <AnimatePresence initial={false} mode="popLayout">
-          {events.map((event, index) => {
+          {filteredEvents.map((event, index) => {
             const style = getEventStyle(event.type);
             const Icon = style.icon;
 
@@ -180,9 +195,9 @@ export default function Timeline({ events = [] }) {
 
       {/* 4. FOOTER STATS DECK */}
       <div className="grid grid-cols-3 border-t border-cyan-900/30 bg-[#020617] divide-x divide-cyan-900/30">
-         <StatBlock label="EVENTS" value={stats.success} color="text-emerald-400" />
-         <StatBlock label="ALERTS" value={stats.alerts} color="text-amber-400" />
-         <StatBlock label="TOTAL" value={stats.total} color="text-cyan-400" />
+         <StatBlock label="DOSES" value={stats.doses} color="text-cyan-400" />
+         <StatBlock label="LOGS" value={stats.logs} color="text-fuchsia-400" />
+         <StatBlock label="ALERTS" value={stats.alerts} color="text-red-400" />
       </div>
 
     </div>

@@ -2,31 +2,51 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { generateTickUpdate } from "../services/demoEngine";
+import { v4 as uuidv4 } from 'uuid'; // Ensure you have uuid or use a helper
 
 // 🛡️ SYSTEM DEFAULTS (Factory Reset State)
 const INITIAL_STATE = {
+  // Telemetry
   stability: 76,
   readiness: 88,
   trend: "Stable",
   confidence: 78,
   riskScore: 42,
+  
+  // Tactical Data
   events: [],
-  assistantMessage: null,
-  systemStatus: "ONLINE", // New: Tracks simulated connection health
+  alerts: [],
+  doseStreak: 3, // Start with a small streak for motivation
+  
+  // UX State
+  assistantMessage: "System initialized. Monitoring neural link.",
+  systemStatus: "ONLINE",
+};
+
+// ⚙️ PHYSICS CONSTANTS
+const DOSE_EFFECTS = {
+  standard: { stability: 6, readiness: 3 },
+  booster: { stability: 12, readiness: 8 },
+  emergency: { stability: 25, readiness: 15 }
+};
+
+const SYMPTOM_IMPACT = {
+  low: { stability: -3, readiness: -2 },    // Severity 1-3
+  med: { stability: -8, readiness: -5 },    // Severity 4-6
+  high: { stability: -18, readiness: -12 }  // Severity 7-10
 };
 
 export const useDemoStore = create(
   persist(
     (set, get) => ({
+      
       // =========================================
       // 🌌 SIMULATION ENGINE STATE
       // =========================================
       demoMode: false,
       running: false,
-      speed: 1, // 1x (Normal), 2x (Fast), 4x (Overclock)
-      scenario: "normal", // calm | normal | aggressive | unstable
-      
-      // Internal engine ref (not persisted usually, but kept for logic safety)
+      speed: 1, 
+      scenario: "normal",
       _interval: null,
 
       // =========================================
@@ -34,130 +54,179 @@ export const useDemoStore = create(
       // =========================================
       ...INITIAL_STATE,
 
+      // Computed property helper (Zustand selector pattern)
+      get alertsUnacknowledged() {
+        return get().alerts.filter(a => a.status === 'active').length;
+      },
+
+      // =========================================
+      // 💊 TACTICAL MODULE: DOSE
+      // =========================================
+      addDose: (payload) => set((state) => {
+        const effect = DOSE_EFFECTS[payload.capsuleType] || DOSE_EFFECTS.standard;
+        
+        // 1. Calculate new vitals (Clamped 0-100)
+        const newStability = Math.min(100, state.stability + effect.stability);
+        const newReadiness = Math.min(100, state.readiness + effect.readiness);
+
+        // 2. Create Timeline Event
+        const event = {
+          id: uuidv4(),
+          type: "dose",
+          label: `INTAKE: ${payload.capsuleType.toUpperCase()}`,
+          description: `Stability +${effect.stability}%`,
+          time: new Date().toLocaleTimeString(),
+          timestamp: new Date().toISOString(),
+          ...payload
+        };
+
+        return {
+          stability: newStability,
+          readiness: newReadiness,
+          doseStreak: state.doseStreak + 1,
+          events: [event, ...state.events].slice(0, 50),
+          assistantMessage: "Capsule metabolized. Neural alignment stabilizing."
+        };
+      }),
+
+      // =========================================
+      // 🧬 TACTICAL MODULE: LOGS
+      // =========================================
+      addSymptom: (payload) => set((state) => {
+        const severity = payload.severity;
+        const impact = severity >= 7 ? SYMPTOM_IMPACT.high 
+                     : severity >= 4 ? SYMPTOM_IMPACT.med 
+                     : SYMPTOM_IMPACT.low;
+
+        // 1. Apply Damage
+        const newStability = Math.max(0, state.stability + impact.stability);
+        const newReadiness = Math.max(0, state.readiness + impact.readiness);
+
+        // 2. Create Event
+        const event = {
+          id: uuidv4(),
+          type: "symptom",
+          label: `ANOMALY: ${payload.symptom.toUpperCase()}`,
+          description: `Severity ${severity}/10 detected`,
+          time: new Date().toLocaleTimeString(),
+          timestamp: new Date().toISOString(),
+          ...payload
+        };
+
+        // 3. Trigger Alert if Critical
+        let newAlerts = state.alerts;
+        if (severity >= 7) {
+          const alert = {
+            id: uuidv4(),
+            title: "CRITICAL BIO-SPIKE",
+            message: `${payload.symptom} detected at critical levels. Immediate rest protocol advised.`,
+            severity: "critical",
+            status: "active",
+            time: new Date().toISOString(),
+            rangerId: "RNG-01"
+          };
+          newAlerts = [alert, ...state.alerts];
+        }
+
+        return {
+          stability: newStability,
+          readiness: newReadiness,
+          events: [event, ...state.events].slice(0, 50),
+          alerts: newAlerts,
+          assistantMessage: severity > 6 
+            ? "WARNING: High stress detected. Counter-measures required." 
+            : "Symptom logged. Adjusting predictive models."
+        };
+      }),
+
+      // =========================================
+      // 🚨 TACTICAL MODULE: ALERTS
+      // =========================================
+      addAlert: (alert) => set((state) => ({
+        alerts: [{ ...alert, id: uuidv4(), status: "active", time: new Date().toISOString() }, ...state.alerts]
+      })),
+
+      acknowledgeAlert: (id) => set((state) => ({
+        alerts: state.alerts.map(a => 
+          a.id === id ? { ...a, status: "acknowledged" } : a
+        )
+      })),
+
+      resolveAlert: (id) => set((state) => ({
+        alerts: state.alerts.map(a => 
+          a.id === id ? { ...a, status: "resolved" } : a
+        )
+      })),
+
       // =========================================
       // 🕹️ ENGINE CONTROL ACTIONS
       // =========================================
-
-      /**
-       * 🔵 Toggle Demo Mode
-       * Engages/Disengages the simulation protocol.
-       */
       toggleDemoMode: () => {
         const { demoMode, stopSimulation, resetSimulation } = get();
-        
         if (demoMode) {
           stopSimulation();
-          resetSimulation(); // Auto-reset on exit for cleanliness
+          resetSimulation();
         }
-        
         set({ demoMode: !demoMode });
       },
 
-      /**
-       * 🔵 Start Simulation
-       * Spins up the event loop based on current speed.
-       */
       startSimulation: () => {
-        const { _interval, running, speed } = get();
-        
-        // Prevent duplicate engines running
+        const { _interval, speed } = get();
         if (_interval) clearInterval(_interval);
 
         const tickRate = 1000 / (speed || 1);
 
         const interval = setInterval(() => {
-          // 1. Snapshot current state
           const currentState = get();
-          
-          // 2. Calculate next frame via Engine Service
           const update = generateTickUpdate(currentState);
-
-          // 3. Hydrate state with new telemetry
           set(update); 
         }, tickRate);
 
         set({ running: true, _interval: interval });
       },
 
-      /**
-       * 🔵 Stop/Pause Simulation
-       * Halts the event loop immediately.
-       */
       pauseSimulation: () => {
         const { _interval } = get();
         if (_interval) clearInterval(_interval);
         set({ running: false, _interval: null });
       },
 
-      // Alias for clarity
       stopSimulation: () => get().pauseSimulation(),
 
-      /**
-       * 🔵 Reset Simulation
-       * Purges all data and restores factory defaults.
-       */
       resetSimulation: () => {
         get().pauseSimulation();
         set({ ...INITIAL_STATE });
       },
 
-      // =========================================
-      // 🎛️ PARAMETER TUNING
-      // =========================================
+      setScenario: (newScenario) => set({ scenario: newScenario }),
 
-      /**
-       * 🔵 Set Scenario
-       * Hot-swaps the active risk profile.
-       */
-      setScenario: (newScenario) => {
-        set({ scenario: newScenario });
-        // Optional: Trigger a toast or log here if needed
-      },
-
-      /**
-       * 🔵 Set Speed (Time Dilation)
-       * Hot-swaps the tick rate without stopping the engine.
-       */
       setSpeed: (newSpeed) => {
         const { running, startSimulation, pauseSimulation } = get();
-        
-        // Update state
         set({ speed: newSpeed });
-
-        // If engine was running, restart it immediately with new timing
         if (running) {
-          pauseSimulation(); // clear old timer
-          startSimulation(); // start new timer
+          pauseSimulation();
+          startSimulation();
         }
       },
 
-      // =========================================
-      // 📡 DATA INGESTION (Internal)
-      // =========================================
+      // --- UTILS ---
+      addEvent: (event) => set((state) => ({ 
+        events: [{ ...event, _receivedAt: Date.now() }, ...state.events].slice(0, 50) 
+      })),
 
-      /**
-       * 🔵 Push Timeline Event
-       * Adds a new log entry, capping history at 20 items.
-       */
-      addEvent: (event) => {
-        const { events } = get();
-        const timestampedEvent = { ...event, _receivedAt: Date.now() };
-        set({ events: [timestampedEvent, ...events].slice(0, 20) });
-      },
-
-      /**
-       * 🔵 Set Assistant Message
-       * updates the hologram bubble text.
-       */
       setAssistantMessage: (msg) => set({ assistantMessage: msg }),
+
     }),
     {
-      name: "ranger-demo-storage", // Unique local storage key
+      name: "ranger-core-storage", 
       partialize: (state) => ({ 
-        // Only persist these fields (don't persist the interval ID!)
         demoMode: state.demoMode,
         scenario: state.scenario,
-        speed: state.speed
+        speed: state.speed,
+        doseStreak: state.doseStreak,
+        // We persist alerts and logs so user doesn't lose history on refresh
+        events: state.events,
+        alerts: state.alerts
       }),
     }
   )

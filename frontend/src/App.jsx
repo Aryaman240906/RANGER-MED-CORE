@@ -7,13 +7,19 @@ import { useAuthStore } from "./store/authStore";
 // --- BACKGROUND SYNC WORKER ---
 import { registerSyncWorker } from "./workers/registerSyncWorker";
 
-// --- PAGES ---
+// --- CORE PAGES ---
 import Landing from "./pages/Landing"; 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import RangerDashboard from "./pages/RangerDashboard";
 import DemoMode from "./pages/DemoMode";
-import AvatarBuilderPage from "./pages/AvatarBuilder"; // <--- NEW IMPORT
+import Profile from "./pages/Profile";
+import AvatarBuilderPage from "./pages/AvatarBuilder";
+
+// --- NEW MODULE PAGES (Phase 15) ---
+import DosePage from "./pages/DosePage";
+import LogPage from "./pages/LogPage";
+import AlertsPage from "./pages/AlertsPage";
 
 // --- COMPONENTS ---
 import DoctorMockPanel from "./components/demo/DoctorMockPanel";
@@ -125,9 +131,9 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* === PROTECTED ROUTES === */}
+        {/* === PROTECTED CORE ROUTES === */}
         
-        {/* Ranger Dashboard */}
+        {/* Ranger Dashboard (Main Hub) */}
         <Route
           path="/dashboard"
           element={
@@ -137,7 +143,17 @@ export default function App() {
           }
         />
 
-        {/* Avatar Builder (NEW) */}
+        {/* Profile / Morphin Grid Entry */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Avatar Builder (Direct Access) */}
         <Route
           path="/avatar"
           element={
@@ -146,6 +162,40 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* --- NEW TACTICAL MODULES --- */}
+
+        {/* 1. Dose / Capsule Console */}
+        <Route
+          path="/dose"
+          element={
+            <ProtectedRoute>
+              <DosePage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* 2. Log / Bio-Diagnostics */}
+        <Route
+          path="/log"
+          element={
+            <ProtectedRoute>
+              <LogPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* 3. Alerts / Mission Control */}
+        <Route
+          path="/alerts"
+          element={
+            <ProtectedRoute>
+              <AlertsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* --- UTILITIES --- */}
 
         {/* Demo Mode */}
         <Route
