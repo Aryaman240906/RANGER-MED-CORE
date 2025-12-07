@@ -1,75 +1,98 @@
 // src/components/ranger/ReadinessBar.jsx
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
-import { Zap, AlertTriangle, CheckCircle } from "lucide-react";
+import { Zap, AlertTriangle, CheckCircle, BatteryCharging } from "lucide-react";
 
 const ReadinessBar = ({ value = 0 }) => {
-  // CONFIG: 20 segments for the bar
-  const totalSegments = 20;
+  // CONFIG: 24 segments for a denser "high-tech" look
+  const totalSegments = 24;
   const activeSegments = Math.round((value / 100) * totalSegments);
 
-  // 🎨 DYNAMIC STATUS COLORS & ICONS
+  // 🎨 TACTICAL STATUS CONFIGURATION
   const statusConfig = useMemo(() => {
     if (value >= 80) return { 
       label: "COMBAT READY", 
-      color: "bg-cyan-400", 
-      glow: "shadow-[0_0_12px_#22d3ee]", 
-      icon: CheckCircle, 
-      text: "text-cyan-400" 
+      id: "ready",
+      color: "#22d3ee", // Cyan
+      bg: "bg-cyan-500/10",
+      border: "border-cyan-500/30",
+      shadow: "shadow-[0_0_15px_rgba(34,211,238,0.3)]",
+      barGlow: "shadow-[0_0_8px_#22d3ee]",
+      text: "text-cyan-400",
+      Icon: CheckCircle
     };
     if (value >= 50) return { 
       label: "CAUTION", 
-      color: "bg-yellow-400", 
-      glow: "shadow-[0_0_12px_#facc15]", 
-      icon: AlertTriangle, 
-      text: "text-yellow-400" 
+      id: "caution",
+      color: "#facc15", // Yellow
+      bg: "bg-yellow-500/10",
+      border: "border-yellow-500/30",
+      shadow: "shadow-[0_0_15px_rgba(250,204,21,0.3)]",
+      barGlow: "shadow-[0_0_8px_#facc15]",
+      text: "text-yellow-400",
+      Icon: AlertTriangle
     };
     return { 
       label: "CRITICAL", 
-      color: "bg-red-500", 
-      glow: "shadow-[0_0_15px_#ef4444]", 
-      icon: Zap, 
-      text: "text-red-500" 
+      id: "critical",
+      color: "#ef4444", // Red
+      bg: "bg-red-500/10",
+      border: "border-red-500/50",
+      shadow: "shadow-[0_0_20px_rgba(239,68,68,0.5)]",
+      barGlow: "shadow-[0_0_10px_#ef4444]",
+      text: "text-red-500",
+      Icon: Zap
     };
   }, [value]);
 
-  const StatusIcon = statusConfig.icon;
+  const StatusIcon = statusConfig.Icon;
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="w-full p-5 bg-slate-900/60 border border-slate-700/50 rounded-2xl backdrop-blur-md flex flex-col gap-3 relative overflow-hidden h-full justify-center"
-    >
+    <div className={`relative group w-full p-6 rounded-2xl backdrop-blur-xl border transition-all duration-500 h-full flex flex-col justify-center overflow-hidden ${statusConfig.bg} ${statusConfig.border}`}>
       
-      {/* 🛡️ HEADER ROW */}
-      <div className="flex justify-between items-end">
-        <div className="flex items-center gap-2">
-          <StatusIcon size={16} className={statusConfig.text} />
-          <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-400 font-bold">
-            Mission Readiness
-          </span>
+      {/* 1. ATMOSPHERE */}
+      <div className="absolute inset-0 scanlines opacity-10 pointer-events-none" />
+      <div className={`absolute -right-10 -bottom-10 w-32 h-32 blur-[60px] rounded-full opacity-20 transition-colors duration-500 ${statusConfig.text.replace('text-', 'bg-')}`} />
+
+      {/* 2. HUD BRACKETS */}
+      <div className={`absolute top-0 right-0 w-3 h-3 border-t border-r rounded-tr-sm transition-colors duration-300 ${statusConfig.text.replace('text-', 'border-')} opacity-50`} />
+      <div className={`absolute bottom-0 left-0 w-3 h-3 border-b border-l rounded-bl-sm transition-colors duration-300 ${statusConfig.text.replace('text-', 'border-')} opacity-50`} />
+
+      {/* 3. HEADER */}
+      <div className="relative z-10 flex justify-between items-end mb-3">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <StatusIcon size={14} className={statusConfig.text} />
+            <span className={`text-[10px] font-mono uppercase tracking-[0.2em] font-bold ${statusConfig.text} opacity-90`}>
+              Mission Readiness
+            </span>
+          </div>
+          <div className={`text-[9px] font-mono text-slate-500 tracking-wide uppercase`}>
+            Output Voltage: <span className="text-slate-300">{(value * 0.12).toFixed(1)}kV</span>
+          </div>
         </div>
         
-        {/* Numeric Value */}
-        <div className="flex items-baseline gap-1">
-           <motion.span 
-             key={value} // Re-animate on number change
-             initial={{ opacity: 0.5, scale: 0.9 }}
-             animate={{ opacity: 1, scale: 1 }}
-             className={`text-2xl font-bold font-mono tracking-tighter ${statusConfig.text}`}
-           >
-             {Math.round(value)}
-           </motion.span>
-           <span className="text-xs text-slate-500 font-mono">/100</span>
+        {/* Digital Readout */}
+        <div className="text-right">
+           <div className="flex items-baseline justify-end gap-1">
+             <motion.span 
+               key={value}
+               initial={{ opacity: 0.5, y: 5 }}
+               animate={{ opacity: 1, y: 0 }}
+               className={`text-3xl font-bold font-mono tracking-tighter drop-shadow-md ${statusConfig.text}`}
+             >
+               {Math.round(value)}
+             </motion.span>
+             <span className="text-[10px] text-slate-500 font-mono mb-1">/100</span>
+           </div>
         </div>
       </div>
 
-      {/* 🔋 SEGMENTED BAR CONTAINER */}
-      <div className="relative h-6 w-full bg-slate-950 rounded-md border border-slate-800 flex items-center p-1 gap-0.5 overflow-hidden shadow-inner">
-        
-        {/* Render 20 individual segments */}
+      {/* 4. POWER CELL ARRAY (The Bar) */}
+      <div className="relative h-8 w-full bg-[#020617] rounded-sm border border-slate-700/50 p-1 shadow-inner flex gap-[2px]">
+        {/* Grid Background inside bar */}
+        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(90deg, transparent 50%, rgba(255,255,255,0.1) 50%)', backgroundSize: '4px 4px' }} />
+
         {Array.from({ length: totalSegments }).map((_, i) => {
           const isActive = i < activeSegments;
           return (
@@ -77,36 +100,45 @@ const ReadinessBar = ({ value = 0 }) => {
               key={i}
               initial={false}
               animate={{
-                opacity: isActive ? 1 : 0.2,
-                backgroundColor: isActive ? (value >= 80 ? "#22d3ee" : value >= 50 ? "#facc15" : "#ef4444") : "#334155"
+                opacity: isActive ? 1 : 0.15,
+                backgroundColor: isActive ? statusConfig.color : "#475569",
+                scaleY: isActive ? 1 : 0.8
               }}
-              transition={{ duration: 0.3, delay: i * 0.01 }} // Stagger effect for liquid fill
-              className={`h-full flex-1 rounded-[1px] transition-all duration-300 ${isActive ? statusConfig.glow : ""}`}
-            />
+              transition={{ duration: 0.4, delay: i * 0.015 }} // "Domino" fill effect
+              className={`h-full flex-1 rounded-[1px] transition-all duration-300 relative ${isActive ? statusConfig.barGlow : ""}`}
+            >
+              {/* Internal highlight for 3D glass look */}
+              {isActive && (
+                <div className="absolute top-0 left-0 right-0 h-[30%] bg-white/40 rounded-t-[1px]" />
+              )}
+            </motion.div>
           );
         })}
 
-        {/* 🔦 SCANLINE EFFECT (Light passing through) */}
+        {/* Scanning Laser Overlay */}
         <motion.div
-          animate={{ x: ["-100%", "200%"] }}
-          transition={{ repeat: Infinity, duration: 2.5, ease: "linear", repeatDelay: 0.5 }}
-          className="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-12 pointer-events-none"
+          animate={{ left: ["-20%", "120%"] }}
+          transition={{ repeat: Infinity, duration: 3, ease: "linear", repeatDelay: 1 }}
+          className="absolute top-0 bottom-0 w-8 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg] pointer-events-none z-10"
         />
       </div>
 
-      {/* 📝 FOOTER STATUS TEXT */}
-      <div className="flex justify-between items-center mt-1">
-        <div className={`text-[9px] font-bold font-mono tracking-widest px-2 py-0.5 rounded bg-slate-950/50 border border-slate-800 uppercase ${statusConfig.text}`}>
-          Condition: {statusConfig.label}
+      {/* 5. FOOTER METADATA */}
+      <div className="relative z-10 flex justify-between items-center mt-3">
+        <div className={`flex items-center gap-2 px-2 py-0.5 rounded bg-slate-950/40 border border-slate-800 ${statusConfig.text}`}>
+          <div className={`w-1.5 h-1.5 rounded-full ${isActive => isActive ? "animate-ping" : ""} ${statusConfig.text.replace('text-', 'bg-')}`} />
+          <span className="text-[9px] font-bold font-mono tracking-widest uppercase">
+            {statusConfig.label}
+          </span>
         </div>
         
-        {/* Decorative Grid Dots */}
-        <div className="flex gap-1 opacity-50">
-           {[1,2,3,4].map(d => <div key={d} className="w-1 h-1 rounded-full bg-slate-600" />)}
+        <div className="flex gap-2 text-[9px] font-mono text-slate-600">
+           <span>SYS-CHECK</span>
+           <BatteryCharging size={12} className={statusConfig.text} />
         </div>
       </div>
 
-    </motion.div>
+    </div>
   );
 };
 

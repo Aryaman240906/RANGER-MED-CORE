@@ -1,14 +1,45 @@
+/* src/styles/global.css */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Optional custom reset */
-html, body {
-  height: 100%;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  background-color: #020617; /* deep navy background */
-  color: white;
-  font-family: 'Inter', sans-serif;
+/* --- CUSTOM ANIMATIONS --- */
+/* Required for the Landing Page HUD rings */
+
+/* Slow spin for outer rings */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Reverse spin for counter-rotating elements */
+@keyframes reverse-spin {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+/* Utility classes to use these keyframes */
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
+}
+
+.animate-reverse-spin {
+  animation: reverse-spin 15s linear infinite;
+}
+
+/* --- UTILITY HELPERS --- */
+/* Ensures full height for root app container */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Glass panel helper if not using Tailwind arbitrary values */
+.glass-panel {
+  background: rgba(5, 11, 20, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(34, 211, 238, 0.15);
 }

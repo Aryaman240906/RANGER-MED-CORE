@@ -1,0 +1,144 @@
+/* src/styles/animations.css 
+   Ranger Med-Core Motion Library v2.0
+   Import this in main.jsx or App.jsx
+*/
+
+/* --- 1. GLOW & PULSE EFFECTS --- */
+
+/* Standard "System Idle" Pulse (Cyan) */
+@keyframes neonPulse {
+  0% { box-shadow: 0 0 5px rgba(34,211,238,0.2), inset 0 0 2px rgba(34,211,238,0.1); }
+  50% { box-shadow: 0 0 20px rgba(34,211,238,0.6), inset 0 0 10px rgba(34,211,238,0.2); border-color: rgba(34,211,238,0.6); }
+  100% { box-shadow: 0 0 5px rgba(34,211,238,0.2), inset 0 0 2px rgba(34,211,238,0.1); }
+}
+
+.neon-pulse {
+  animation: neonPulse 3s infinite ease-in-out;
+}
+
+/* "Critical Warning" Pulse (Red) */
+@keyframes dangerPulse {
+  0% { box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
+  50% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.6); border-color: #ef4444; }
+  100% { box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.animate-danger {
+  animation: dangerPulse 1.5s infinite ease-in-out;
+}
+
+/* --- 2. HOLOGRAPHIC & TEXTURE EFFECTS --- */
+
+/* Subtle opacity flicker for holograms */
+@keyframes holoFlicker {
+  0%, 100% { opacity: 1; }
+  3% { opacity: 0.8; }
+  6% { opacity: 1; }
+  7% { opacity: 0.4; } /* Quick drop */
+  8% { opacity: 1; }
+  50% { opacity: 1; }
+  52% { opacity: 0.9; }
+}
+
+.holo-flicker {
+  animation: holoFlicker 4s infinite linear;
+}
+
+/* CRT Screen Turn-off (Used in Intro Exit) */
+@keyframes crtOff {
+  0% { transform: scale(1, 1); filter: brightness(1); }
+  40% { transform: scale(1, 0.005); filter: brightness(3); } /* Squash Vertically */
+  100% { transform: scale(0, 0); filter: brightness(0); } /* Collapse Center */
+}
+
+/* --- 3. HUD ROTATIONS (Essential for Rings) --- */
+
+@keyframes spinClockwise {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spinCounterClockwise {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+.spin-slow {
+  animation: spinClockwise 20s linear infinite;
+}
+
+.spin-medium {
+  animation: spinClockwise 8s linear infinite;
+}
+
+.spin-fast-reverse {
+  animation: spinCounterClockwise 4s linear infinite;
+}
+
+/* --- 4. SCANNING & DATALINES --- */
+
+/* Vertical laser beam moving down */
+@keyframes scanVertical {
+  0% { top: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.scan-beam {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #22d3ee;
+  box-shadow: 0 0 15px #22d3ee;
+  animation: scanVertical 2s linear infinite;
+}
+
+/* Moving stripes for progress bars */
+@keyframes dataStream {
+  0% { background-position: 0 0; }
+  100% { background-position: 50px 50px; }
+}
+
+.data-stream-bg {
+  background-image: linear-gradient(
+    45deg, 
+    rgba(255,255,255,0.05) 25%, 
+    transparent 25%, 
+    transparent 50%, 
+    rgba(255,255,255,0.05) 50%, 
+    rgba(255,255,255,0.05) 75%, 
+    transparent 75%, 
+    transparent
+  );
+  background-size: 20px 20px;
+  animation: dataStream 1s linear infinite;
+}
+
+/* --- 5. TECH ENTRY ANIMATIONS --- */
+
+/* Robotic slide in (starts fast, snaps to stop) */
+@keyframes techSlideUp {
+  0% { transform: translateY(20px); opacity: 0; }
+  60% { transform: translateY(-5px); opacity: 1; } /* Overshoot slightly */
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.tech-enter {
+  animation: techSlideUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* "Glitch" Skew (Use on hover for heavy tech buttons) */
+@keyframes glitchSkew {
+  0% { transform: skew(0deg); }
+  20% { transform: skew(-10deg); }
+  40% { transform: skew(10deg); }
+  60% { transform: skew(-5deg); }
+  80% { transform: skew(5deg); }
+  100% { transform: skew(0deg); }
+}
+
+.hover-glitch:hover {
+  animation: glitchSkew 0.3s ease-in-out;
+}

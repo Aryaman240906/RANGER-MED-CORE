@@ -1,33 +1,82 @@
+// src/components/global/HologramCard.jsx
 import React from 'react';
 import { motion } from 'framer-motion';
 
 /**
- * HologramCard
- * Small card with hologram-like border + subtle animated gradient.
- * Accepts children for flexible content (AI summary, metrics, etc.)
+ * HologramCard Component
+ * A tactical container with glassmorphism, scanlines, and reactive borders.
+ * * Props:
+ * - title: Main header text
+ * - subtitle: Smaller mono-spaced subtext
+ * - icon: Optional Lucide icon component for the top right
+ * - children: Card content
  */
-export default function HologramCard({ title, subtitle, children, className = '' }) {
+export default function HologramCard({ 
+  title, 
+  subtitle, 
+  icon: Icon, 
+  children, 
+  className = '' 
+}) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45 }}
-      className={`relative rounded-2xl p-4 backdrop-blur-md border border-cyan-500/20 bg-gradient-to-t from-slate-900/40 to-slate-900/30 ${className}`}
-      style={{
-        boxShadow: '0 12px 40px rgba(2,6,23,0.6), 0 2px 10px rgba(34,211,238,0.03)'
-      }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className={`relative group rounded-2xl p-5 overflow-hidden backdrop-blur-xl bg-[#050b14]/80 border border-cyan-500/20 shadow-lg ${className}`}
     >
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          {title && <h3 className="text-white text-lg font-semibold">{title}</h3>}
-          {subtitle && <p className="text-cyan-200/80 text-xs mt-1 font-mono">{subtitle}</p>}
+      {/* --- 1. BACKGROUND TEXTURES --- */}
+      {/* Subtle Gradient Wash */}
+      <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-transparent pointer-events-none" />
+      
+      {/* Scanline Overlay (Uses your global scanlines class) */}
+      <div className="absolute inset-0 scanlines opacity-5 pointer-events-none" />
+      
+      {/* --- 2. REACTIVE HUD CORNERS --- */}
+      {/* Top Right Corner */}
+      <div className="absolute top-0 right-0 w-6 h-6 border-t border-r border-cyan-500/40 rounded-tr-xl opacity-60 transition-all duration-500 group-hover:w-10 group-hover:h-10 group-hover:opacity-100 group-hover:border-cyan-400" />
+      
+      {/* Bottom Left Corner */}
+      <div className="absolute bottom-0 left-0 w-6 h-6 border-b border-l border-cyan-500/40 rounded-bl-xl opacity-60 transition-all duration-500 group-hover:w-10 group-hover:h-10 group-hover:opacity-100 group-hover:border-cyan-400" />
+
+      {/* --- 3. HEADER SECTION --- */}
+      {(title || subtitle) && (
+        <div className="relative z-10 flex items-start justify-between mb-4 pb-3 border-b border-cyan-500/10">
+          <div>
+            {title && (
+              <h3 className="text-white text-lg font-bold tracking-wide uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                {title}
+              </h3>
+            )}
+            {subtitle && (
+              <div className="flex items-center gap-2 mt-1">
+                <span className="w-1 h-3 bg-cyan-500/50 rounded-full" />
+                <p className="text-cyan-400/70 text-[10px] font-mono tracking-widest uppercase">
+                  {subtitle}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Holographic Status Node / Icon */}
+          <div className="w-9 h-9 rounded-lg bg-slate-900/60 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.05)] group-hover:border-cyan-500/50 group-hover:shadow-[0_0_15px_rgba(34,211,238,0.2)] transition-all duration-300">
+            {Icon ? (
+              <Icon size={16} strokeWidth={2} />
+            ) : (
+              // Default pulsing dot if no icon
+              <div className="relative flex items-center justify-center">
+                 <span className="w-2 h-2 bg-cyan-400 rounded-full z-10" />
+                 <span className="absolute w-full h-full bg-cyan-400 rounded-full animate-ping opacity-75" />
+              </div>
+            )}
+          </div>
         </div>
-        <div className="w-10 h-10 rounded-full border border-cyan-500/20 bg-slate-900/40 flex items-center justify-center text-cyan-300">
-          {/* small hologram dot */}
-          <div style={{ width: 8, height: 8, borderRadius: 999, background: 'rgba(34,211,238,0.9)' }} />
-        </div>
+      )}
+
+      {/* --- 4. BODY CONTENT --- */}
+      <div className="relative z-10 text-slate-300/90 text-sm leading-relaxed">
+        {children}
       </div>
-      <div>{children}</div>
     </motion.div>
   );
 }

@@ -1,120 +1,137 @@
 // src/components/global/IntroAnimation.jsx
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldCheck, Fingerprint, Cpu, CheckCircle } from "lucide-react";
+import Logo from "./Logo";
 
-export default function IntroAnimation({ onComplete }) {
-  const [step, setStep] = useState(0);
+/**
+ * Cinematic Intro Animation
+ * - Features: Decoupled HUD rings, simulated data loading, CRT exit effect.
+ * - Props:
+ * - onComplete: callback function
+ * - duration: total ms (default 3500)
+ */
+export default function IntroAnimation({ onComplete, duration = 3500 }) {
+  const [visible, setVisible] = useState(true);
+  const [progress, setProgress] = useState(0);
 
-  // Orchestrate the animation timeline
   useEffect(() => {
-    const timeouts = [
-      setTimeout(() => setStep(1), 800),  // Start Bioscan
-      setTimeout(() => setStep(2), 2200), // Access Granted
-      setTimeout(() => setStep(3), 3200), // Exit
-      setTimeout(() => onComplete && onComplete(), 3800) // Cleanup
-    ];
-    return () => timeouts.forEach((t) => clearTimeout(t));
-  }, [onComplete]);
+    // 1. Simulate Loading Progress
+    const start = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const newProgress = Math.min((elapsed / (duration - 500)) * 100, 100); // Finish slightly before exit
+      
+      setProgress(newProgress);
+
+      if (elapsed >= duration) {
+        clearInterval(interval);
+        setVisible(false); // Trigger Exit Animation
+        setTimeout(() => {
+          if (onComplete) onComplete(); // Unmount after exit anim finishes
+        }, 800); // Wait for exit transition
+      }
+    }, 30);
+
+    return () => clearInterval(interval);
+  }, [duration, onComplete]);
 
   return (
     <AnimatePresence>
-      {step < 3 && (
+      {visible && (
         <motion.div
           key="intro-overlay"
+          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#050b14] text-cyan-500 overflow-hidden cursor-wait"
           initial={{ opacity: 1 }}
-          exit={{ opacity: 0, scale: 1.1, filter: "blur(20px)" }}
-          transition={{ duration: 0.8, ease: "easeInOut" }}
-          className="fixed inset-0 z-[9999] bg-slate-950 flex flex-col items-center justify-center overflow-hidden cursor-wait"
+          exit={{ 
+            opacity: 0,
+            scaleY: 0.005, // CRT Turn-off effect (collapse vertical)
+            scaleX: 0,     // Then collapse horizontal
+            filter: "brightness(5)", // Flash of light
+            transition: { duration: 0.6, ease: "easeInOut" }
+          }}
         >
-          {/* 🌌 BACKGROUND GRID */}
+          {/* --- ATMOSPHERE LAYERS --- */}
+          
+          {/* 1. Vignette Background */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_#000_90%)] pointer-events-none z-0" />
+
+          {/* 2. Tactical Grid */}
           <div 
-            className="absolute inset-0 opacity-20" 
+            className="absolute inset-0 opacity-20 pointer-events-none" 
             style={{ 
-              backgroundImage: 'radial-gradient(circle, #22d3ee 1px, transparent 1px)', 
-              backgroundSize: '30px 30px' 
+              backgroundImage: 'linear-gradient(rgba(34,211,238,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.1) 1px, transparent 1px)', 
+              backgroundSize: '50px 50px'
             }}
           />
 
-          {/* 🛡️ CENTRAL HOLOGRAM */}
-          <div className="relative mb-12">
-            {/* Spinning Rings */}
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
-              className="absolute inset-[-40px] border border-cyan-500/20 rounded-full border-dashed"
-            />
-            <motion.div
-              animate={{ rotate: -360 }}
-              transition={{ repeat: Infinity, duration: 12, ease: "linear" }}
-              className="absolute inset-[-25px] border border-cyan-400/30 rounded-full"
-            />
+          {/* 3. Scanlines */}
+          <div className="absolute inset-0 pointer-events-none z-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] opacity-15" />
 
-            {/* Icon Morphing */}
-            <div className="relative z-10 w-24 h-24 flex items-center justify-center bg-slate-900 rounded-full border border-cyan-500/50 shadow-[0_0_50px_rgba(34,211,238,0.3)]">
-              <AnimatePresence mode="wait">
-                {step === 0 && (
-                  <motion.div
-                    key="cpu"
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.5 }}
-                  >
-                    <Cpu size={40} className="text-cyan-400" />
-                  </motion.div>
-                )}
-                {step === 1 && (
-                  <motion.div
-                    key="bio"
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.5 }}
-                  >
-                    <Fingerprint size={40} className="text-cyan-400 animate-pulse" />
-                  </motion.div>
-                )}
-                {step === 2 && (
-                  <motion.div
-                    key="success"
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.5 }}
-                  >
-                    <ShieldCheck size={48} className="text-emerald-400" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-
-          {/* 📝 STATUS TEXT */}
-          <div className="text-center space-y-2 h-16 relative z-10">
-            <motion.div
-              key={step}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-cyan-400 font-mono text-sm tracking-[0.2em] uppercase font-bold"
-            >
-              {step === 0 && "Initializing Core Systems..."}
-              {step === 1 && "Verifying Ranger Biometrics..."}
-              {step === 2 && <span className="text-emerald-400">Identity Confirmed. Welcome.</span>}
-            </motion.div>
-
-            {/* Loading Bar */}
-            <div className="w-64 h-1 bg-slate-800 rounded-full overflow-hidden mx-auto mt-4 relative">
+          {/* --- CENTRAL CONTENT --- */}
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.8, ease: "backOut" }}
+            className="relative z-10 flex flex-col items-center gap-10"
+          >
+            {/* LOGO HUD CONTAINER */}
+            <div className="relative flex items-center justify-center w-64 h-64">
+              
+              {/* Spinning Ring 1 (Slow Clockwise) */}
               <motion.div
-                initial={{ width: "0%" }}
-                animate={{ width: step >= 2 ? "100%" : step === 1 ? "70%" : "30%" }}
-                transition={{ duration: 0.5 }}
-                className={`h-full ${step === 2 ? "bg-emerald-500" : "bg-cyan-500"} shadow-[0_0_10px_currentColor]`}
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 15, ease: "linear" }}
+                className="absolute inset-0 rounded-full border border-cyan-500/20 border-dashed"
               />
+
+              {/* Spinning Ring 2 (Fast Counter-Clockwise) */}
+              <motion.div
+                animate={{ rotate: -360 }}
+                transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
+                className="absolute inset-4 rounded-full border-2 border-t-cyan-400/40 border-r-transparent border-b-cyan-400/40 border-l-transparent"
+              />
+              
+              {/* Static Glow Ring */}
+              <div className="absolute inset-8 rounded-full bg-cyan-500/5 blur-xl animate-pulse" />
+
+              {/* THE LOGO (Stationary) */}
+              <div className="relative z-20 p-6 bg-[#050b14]/80 backdrop-blur-sm rounded-full border border-cyan-500/30 shadow-[0_0_30px_rgba(34,211,238,0.15)]">
+                 {/* Pass large size to Logo via className */}
+                 <Logo className="w-20 h-20" subtitle={false} />
+              </div>
             </div>
+
+            {/* TEXT & LOADING */}
+            <div className="flex flex-col items-center gap-3 w-72">
+              <h1 className="text-2xl font-black tracking-[0.2em] text-white drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">
+                RANGER MED
+              </h1>
+              
+              {/* Loading Bar Container */}
+              <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden relative border border-slate-700">
+                <motion.div 
+                  className="h-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+
+              {/* Status Text & Percentage */}
+              <div className="flex justify-between w-full text-[10px] font-mono font-bold tracking-widest text-cyan-400/80">
+                <span>
+                  {progress < 40 ? "INITIALIZING..." : 
+                   progress < 80 ? "LOADING MODULES..." : 
+                   "SYSTEM READY"}
+                </span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* --- BOTTOM DECORATION --- */}
+          <div className="absolute bottom-10 text-[9px] text-slate-500 font-mono tracking-[0.4em] opacity-60">
+            SECURE CONNECTION ESTABLISHED
           </div>
 
-          {/* 💾 FOOTER DECORATION */}
-          <div className="absolute bottom-10 text-[10px] text-slate-600 font-mono tracking-widest uppercase">
-            Ranger Med-Core v5.0.1 // Secure Connection
-          </div>
         </motion.div>
       )}
     </AnimatePresence>

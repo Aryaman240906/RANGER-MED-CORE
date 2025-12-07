@@ -1,0 +1,131 @@
+/* src/styles/tokens.css
+   Power-Ranger Cinematic Theme Tokens v2.0
+   Design Philosophy: High contrast, neon luminescence, glassmorphism, and tactical grids.
+*/
+
+:root {
+  /* --- Core Palette (Refined) --- */
+  /* Added 'dim' variants for subtle borders/backgrounds */
+  --pr-cyan: #06b6d4;
+  --pr-cyan-bright: #67e8f9; /* Brighter for text highlights */
+  --pr-cyan-dim: rgba(6, 182, 212, 0.15); 
+  
+  --pr-blue: #0ea5e9;
+  --pr-magenta: #d946ef;
+  --pr-emerald: #10b981;
+  
+  /* Added functional colors for UI states */
+  --pr-warning: #facc15;
+  --pr-danger: #f43f5e;
+
+  /* --- Surfaces --- */
+  --bg-dark: #050b14; /* Deep space black */
+  --bg-surface: rgba(8, 16, 23, 0.75); /* Slightly more opaque for readability */
+  --bg-panel: rgba(14, 165, 233, 0.03);
+
+  /* --- Effects --- */
+  /* Optimized blur for performance */
+  --glass-blur: blur(12px);
+  
+  /* Multi-layered glow for depth */
+  --neon-glow: 
+    0 0 10px rgba(34, 211, 238, 0.2),
+    0 0 20px rgba(34, 211, 238, 0.1),
+    0 0 40px rgba(34, 211, 238, 0.05);
+
+  --text-glow: 0 0 12px rgba(34, 211, 238, 0.6);
+}
+
+/* --- Animations --- */
+@keyframes hud-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 18px rgba(34,211,238,0.15), inset 0 0 6px rgba(34,211,238,0.05); }
+  50% { opacity: 0.9; box-shadow: 0 0 25px rgba(34,211,238,0.25), inset 0 0 10px rgba(34,211,238,0.1); }
+}
+
+@keyframes scanline-move {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 100%; }
+}
+
+/* --- Global Utilities --- */
+
+/* 1. Enhanced Neon Border */
+.neon-border {
+  position: relative;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  background: linear-gradient(180deg, rgba(6,182,212,0.1) 0%, rgba(6,182,212,0) 100%);
+  box-shadow: var(--neon-glow);
+  transition: all 0.3s ease;
+}
+
+/* Optional: Add hover effect to interactive neon borders */
+.neon-border.interactive:hover {
+  border-color: var(--pr-cyan-bright);
+  box-shadow: 0 0 25px rgba(34, 211, 238, 0.4);
+}
+
+/* 2. Cinematic Text */
+.neon-text {
+  color: var(--pr-cyan-bright);
+  text-shadow: var(--text-glow);
+  letter-spacing: 0.05em; /* Tech look */
+  font-weight: 600;
+}
+
+/* 3. Tactical Grid Background 
+   Replaced simple dots with a linear mesh for a "Blueprint" feel */
+.hero-grid {
+  background-color: var(--bg-dark);
+  background-image: 
+    linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+  /* Adds a vignette to fade edges into darkness */
+  mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+}
+
+/* 4. Glass / Hologram Overlay */
+.holo-overlay {
+  background: rgba(14, 165, 233, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur); /* Safari support */
+  
+  /* Subtle noise texture for realism */
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
+}
+
+/* --- New Bonus Utilities --- */
+
+/* 5. Scanlines (CRT Effect)
+   Usage: Add this class to a container to give it that "screen" texture */
+.scanlines {
+  position: relative;
+  overflow: hidden;
+}
+.scanlines::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0) 50%,
+    rgba(0, 0, 0, 0.2) 50%,
+    rgba(0, 0, 0, 0.2)
+  );
+  background-size: 100% 4px;
+  z-index: 10;
+  pointer-events: none; /* Let clicks pass through */
+}
+
+/* 6. Alive Pulse
+   Usage: Add to critical UI buttons or indicators */
+.animate-pulse-neon {
+  animation: hud-pulse 3s infinite ease-in-out;
+}
