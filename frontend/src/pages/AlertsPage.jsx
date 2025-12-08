@@ -1,5 +1,5 @@
 // src/pages/AlertsPage.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ShieldAlert, Radio, CheckCircle2, 
@@ -9,11 +9,14 @@ import { Toaster } from "react-hot-toast";
 
 // --- STORES ---
 import { useDemoStore } from "../store/demoStore";
+import { useTutorialStore } from "../store/tutorialStore"; // 👈 NEW
 
 // --- COMPONENTS ---
 import AlertCenter from "../components/alerts/AlertCenter";
 import AlertDetailModal from "../components/alerts/AlertDetailModal";
 import AssistantBubble from "../components/ranger/AssistantBubble";
+import TutorialOverlay from "../components/tutorial/TutorialOverlay"; // 👈 NEW
+import ConfettiListener from "../components/global/Confetti";
 
 // --- ANIMATION VARIANTS ---
 const pageVariants = {
@@ -30,11 +33,21 @@ const pageVariants = {
  * Central command for reviewing system warnings, anomalies, and directives.
  */
 export default function AlertsPage() {
-  const { alerts, alertsUnacknowledged } = useDemoStore();
+  const { alerts, alertsUnacknowledged, demoMode } = useDemoStore();
+  const showTutorial = useTutorialStore((s) => s.showForUser); // 👈 NEW
   
   // Local State
   const [filter, setFilter] = useState("all"); // all, critical, warning, info
   const [selectedAlertId, setSelectedAlertId] = useState(null);
+
+  // --- 1. TUTORIAL TRIGGER ---
+  useEffect(() => {
+    // Delay slightly to allow the "Mission Control" animations to settle
+    const t = setTimeout(() => {
+      showTutorial('alerts', { mode: demoMode ? 'always' : 'once' });
+    }, 500);
+    return () => clearTimeout(t);
+  }, [demoMode, showTutorial]);
 
   // --- DERIVED STATE ---
   const filteredAlerts = useMemo(() => {
@@ -61,6 +74,9 @@ export default function AlertsPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.05),transparent_60%)]" />
       </div>
 
+      {/* Global Overlays */}
+      <ConfettiListener />
+      <TutorialOverlay /> {/* 👈 Tutorial Layer */}
       <Toaster position="top-right" />
 
       {/* 2. MAIN CONTENT */}
@@ -120,7 +136,10 @@ export default function AlertsPage() {
           
           {/* LEFT: LIST FEED (2/3 width) */}
           <div className="lg:col-span-2 flex flex-col gap-4 relative">
-            <div className="flex-1 bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl rounded-2xl overflow-hidden relative shadow-lg flex flex-col">
+            <div 
+              data-tour="alert-feed" // 👈 Tutorial Target
+              className="flex-1 bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl rounded-2xl overflow-hidden relative shadow-lg flex flex-col"
+            >
                {/* List Component */}
                <AlertCenter 
                  alerts={filteredAlerts} 
@@ -136,7 +155,10 @@ export default function AlertsPage() {
 
           {/* RIGHT: DETAILS PANEL (1/3 width - Desktop Only preview) */}
           <div className="hidden lg:flex flex-col gap-4">
-             <div className="flex-1 bg-black/40 border border-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center space-y-4">
+             <div 
+               data-tour="alert-card" // 👈 Tutorial Target
+               className="flex-1 bg-black/40 border border-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center space-y-4"
+             >
                 <AlertTriangle size={48} className="text-slate-700 opacity-50" />
                 <div>
                   <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest">Secure Terminal</h3>

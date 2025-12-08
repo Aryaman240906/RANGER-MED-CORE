@@ -7,11 +7,14 @@ import { Toaster } from "react-hot-toast";
 // --- STORES ---
 import { useDemoStore } from "../store/demoStore";
 import { useAuthStore } from "../store/authStore";
+import { useTutorialStore } from "../store/tutorialStore"; // 👈 NEW
 
 // --- COMPONENTS ---
 import BioScanForm from "../components/log/BioScanForm";
 import DiagnosticsPanel from "../components/log/DiagnosticsPanel";
 import AssistantBubble from "../components/ranger/AssistantBubble";
+import TutorialOverlay from "../components/tutorial/TutorialOverlay"; // 👈 NEW
+import ConfettiListener from "../components/global/Confetti";
 
 // --- ANIMATION VARIANTS ---
 const pageVariants = {
@@ -35,11 +38,21 @@ const panelVariants = {
  */
 export default function LogPage() {
   const { user } = useAuthStore();
-  const { events } = useDemoStore();
+  const { events, demoMode } = useDemoStore();
+  const showTutorial = useTutorialStore((s) => s.showForUser); // 👈 NEW
   
   // Compute recent symptom context for the assistant
   const [assistantMessage, setAssistantMessage] = useState("Diagnostics Module Initialized. Awaiting Input.");
 
+  // --- 1. TUTORIAL TRIGGER ---
+  useEffect(() => {
+    const t = setTimeout(() => {
+      showTutorial('log', { mode: demoMode ? 'always' : 'once' });
+    }, 500);
+    return () => clearTimeout(t);
+  }, [demoMode, showTutorial]);
+
+  // --- 2. ASSISTANT LOGIC ---
   useEffect(() => {
     const lastSymptom = events.find(e => e.type === 'symptom');
     if (lastSymptom) {
@@ -64,6 +77,9 @@ export default function LogPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.05),transparent_80%)]" />
       </div>
 
+      {/* Global Overlays */}
+      <ConfettiListener />
+      <TutorialOverlay /> {/* 👈 Tutorial Layer */}
       <Toaster position="top-right" />
 
       {/* 2. MAIN CONTENT GRID */}
@@ -114,7 +130,10 @@ export default function LogPage() {
             variants={panelVariants} 
             className="lg:col-span-5 flex flex-col gap-6"
           >
-            <div className="bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl rounded-2xl p-1 relative overflow-hidden shadow-2xl">
+            <div 
+              data-tour="log-severity" // 👈 Tutorial Target (Scanning Interface)
+              className="bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl rounded-2xl p-1 relative overflow-hidden shadow-2xl"
+            >
                {/* Decorative Header Bar */}
                <div className="h-1 w-full bg-gradient-to-r from-emerald-500/50 via-cyan-500/50 to-transparent absolute top-0 left-0" />
                <BioScanForm />
@@ -132,7 +151,10 @@ export default function LogPage() {
             variants={panelVariants} 
             className="lg:col-span-7 flex flex-col h-full min-h-[500px]"
           >
-            <div className="flex-1 bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl rounded-2xl overflow-hidden relative shadow-lg flex flex-col">
+            <div 
+              data-tour="log-diagnostics" // 👈 Tutorial Target (Analysis Panel)
+              className="flex-1 bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl rounded-2xl overflow-hidden relative shadow-lg flex flex-col"
+            >
               
               <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
                 <div className="flex items-center gap-2">

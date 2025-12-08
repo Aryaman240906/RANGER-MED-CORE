@@ -7,12 +7,14 @@ import { Toaster } from "react-hot-toast";
 // --- STORES & SERVICES ---
 import { useDemoStore } from "../store/demoStore";
 import { useAuthStore } from "../store/authStore";
+import { useTutorialStore } from "../store/tutorialStore"; // 👈 NEW
 
 // --- COMPONENTS ---
 import DoseConsole from "../components/dose/DoseConsole";
 import CapsuleHistoryTable from "../components/dose/CapsuleHistoryTable";
 import ConfettiListener from "../components/global/Confetti"; 
 import AssistantBubble from "../components/ranger/AssistantBubble";
+import TutorialOverlay from "../components/tutorial/TutorialOverlay"; // 👈 NEW
 
 // --- ANIMATION VARIANTS ---
 const pageVariants = {
@@ -36,12 +38,22 @@ const panelVariants = {
  */
 export default function DosePage() {
   const { user } = useAuthStore();
-  const { doseStreak, stability } = useDemoStore();
+  const { doseStreak, stability, demoMode } = useDemoStore();
+  const showTutorial = useTutorialStore((s) => s.showForUser); // 👈 NEW
   
   // Local state for UI feedback
   const [assistantMessage, setAssistantMessage] = useState("");
 
-  // Determine Assist Message based on stability/streak
+  // --- 1. TUTORIAL TRIGGER ---
+  useEffect(() => {
+    // Slight delay to ensure layout is stable before highlighting
+    const t = setTimeout(() => {
+      showTutorial('dose', { mode: demoMode ? 'always' : 'once' });
+    }, 500);
+    return () => clearTimeout(t);
+  }, [demoMode, showTutorial]);
+
+  // --- 2. ASSISTANT LOGIC ---
   useEffect(() => {
     if (stability < 50) {
       setAssistantMessage("WARNING: Neural stability critical. Immediate dosage recommended.");
@@ -64,6 +76,7 @@ export default function DosePage() {
 
       {/* Global Event Listeners */}
       <ConfettiListener /> 
+      <TutorialOverlay /> {/* 👈 The Tutorial UI Layer */}
       <Toaster position="top-right" />
 
       {/* 2. MAIN CONTENT GRID */}
@@ -94,7 +107,10 @@ export default function DosePage() {
           </div>
 
           {/* Streak Badge */}
-          <div className="flex items-center gap-3 px-4 py-2 rounded-lg bg-black/40 border border-slate-700/50 backdrop-blur-md">
+          <div 
+            data-tour="streak-badge" // 👈 Tutorial Target
+            className="flex items-center gap-3 px-4 py-2 rounded-lg bg-black/40 border border-slate-700/50 backdrop-blur-md"
+          >
             <div className="flex flex-col items-end">
               <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Current Streak</span>
               <span className="text-xl font-mono font-bold text-emerald-400 leading-none">
@@ -115,7 +131,9 @@ export default function DosePage() {
             className="lg:col-span-5 flex flex-col gap-6"
           >
             {/* The Main Action Panel */}
-            <DoseConsole />
+            <div data-tour="dose-console"> {/* 👈 Tutorial Target Wrapper */}
+              <DoseConsole />
+            </div>
 
             {/* AI Assistant Context */}
             <div className="hidden lg:block">
@@ -129,7 +147,10 @@ export default function DosePage() {
             variants={panelVariants} 
             className="lg:col-span-7 flex flex-col h-full min-h-[500px]"
           >
-            <div className="flex-1 bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl rounded-2xl overflow-hidden relative shadow-lg flex flex-col">
+            <div 
+              data-tour="dose-history" // 👈 Tutorial Target
+              className="flex-1 bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl rounded-2xl overflow-hidden relative shadow-lg flex flex-col"
+            >
               
               {/* Table Header Decoration */}
               <div className="h-1 w-full bg-gradient-to-r from-cyan-500/50 via-blue-500/50 to-transparent" />

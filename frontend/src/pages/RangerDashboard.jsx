@@ -2,38 +2,50 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Toaster, toast } from "react-hot-toast";
-import { Beaker, Power, Terminal } from "lucide-react";
+import { Beaker, Power, Terminal, Radio } from "lucide-react";
 
-// Stores
+// --- STORES ---
 import { useDemoStore } from "../store/demoStore";
+import { useTutorialStore } from "../store/tutorialStore"; // 👈 NEW
 
-// Components
+// --- COMPONENTS ---
 import Dashboard from "../components/ranger/Dashboard";
 import BottomTabNav from "../components/global/BottomTabNav";
-import MobileDoseModal from "../components/ranger/MobileDoseModal";
-import MobileSymptomModal from "../components/ranger/MobileSymptomModal";
 import ScenarioSlider from "../components/demo/ScenarioSlider";
 import DemoControls from "../components/demo/DemoControls";
 import IntroAnimation from "../components/global/IntroAnimation";
-import ConfettiListener from "../components/global/Confetti"; // 👈 NEW IMPORT
+import ConfettiListener from "../components/global/Confetti";
+import TutorialOverlay from "../components/tutorial/TutorialOverlay"; // 👈 NEW
 
 const RangerDashboard = () => {
-  // Mobile Modal State
-  const [doseOpen, setDoseOpen] = useState(false);
-  const [symOpen, setSymOpen] = useState(false);
-
-  // Intro Animation State (Default true to show on load)
+  // Intro Animation State
   const [showIntro, setShowIntro] = useState(true);
 
-  // Demo Store Access
+  // Store Access
   const demoMode = useDemoStore((s) => s.demoMode);
   const toggleDemoMode = useDemoStore((s) => s.toggleDemoMode);
+  const showTutorial = useTutorialStore((s) => s.showForUser); // 👈 NEW
 
-  // Listener for Sync Worker events (Offline Sync)
+  // --- 1. TUTORIAL TRIGGER ---
+  // Only check for tutorial after the intro sequence completes
+  const handleIntroComplete = () => {
+    setShowIntro(false);
+    // Slight delay to let the dashboard fade in before the tutorial overlay appears
+    setTimeout(() => {
+      showTutorial('dashboard', { mode: demoMode ? 'always' : 'once' });
+    }, 800);
+  };
+
+  // --- 2. SYNC LISTENER ---
   useEffect(() => {
     const handleSync = (e) => {
       if (e.detail?.type === "synced") {
-        toast.success("Data synced with Command.", { id: "sync-success" });
+        toast.success(
+          <span className="font-mono text-xs">
+            UPLINK ESTABLISHED: Data Synced
+          </span>, 
+          { id: "sync-success", icon: "📡" }
+        );
       }
     };
     window.addEventListener("syncworker", handleSync);
@@ -41,77 +53,107 @@ const RangerDashboard = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 relative overflow-hidden pb-28">
+    <div className="min-h-screen bg-[#050b14] relative overflow-hidden pb-28">
       
       {/* 👂 GLOBAL EVENT LISTENERS */}
-      <ConfettiListener /> {/* Triggers fireworks on milestones */}
+      <ConfettiListener /> 
+      <TutorialOverlay /> {/* 👈 The Tutorial UI Layer */}
 
-      {/* 🎬 INTRO ANIMATION OVERLAY */}
-      {showIntro && <IntroAnimation onComplete={() => setShowIntro(false)} />}
+      {/* 🎬 INTRO SEQUENCE */}
+      <AnimatePresence>
+        {showIntro && <IntroAnimation onComplete={handleIntroComplete} />}
+      </AnimatePresence>
 
-      {/* --- BACKGROUND LAYERS --- */}
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.15),_rgba(2,6,23,1))]" />
-      <div
-        className="pointer-events-none fixed inset-0 opacity-[0.18]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%2322d3ee' stroke-opacity='0.08' stroke-width='1'%3E%3Ccircle cx='30' cy='30' r='20'/%3E%3Ccircle cx='30' cy='30' r='10'/%3E%3C/g%3E%3C/svg%3E")`,
-        }}
-      />
+      {/* --- BACKGROUND ATMOSPHERE --- */}
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.15),_transparent_70%)]" />
+        <div className="absolute inset-0 hero-grid opacity-20" />
+        <div className="absolute inset-0 scanlines opacity-10" />
+      </div>
 
       {/* --- CONTENT CONTAINER --- */}
       <motion.div
-        // Delay entrance slightly to wait for intro to finish
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.9, delay: 3.5, ease: "easeOut" }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: showIntro ? 0 : 1 }}
+        transition={{ duration: 1, ease: "easeOut" }}
         className="relative z-10 max-w-7xl mx-auto px-4 pt-6"
       >
         
-        {/* --- TOP BAR: DEMO TOGGLE --- */}
+        {/* --- TOP BAR: COMMAND HEADER --- */}
         <div className="flex justify-between items-center mb-6">
-           {/* Left: Branding */}
-           <div className="flex items-center gap-2">
-              <div className="w-2 h-8 bg-cyan-500 rounded-full shadow-[0_0_10px_#22d3ee]" />
-              <h1 className="text-xl font-bold text-white tracking-widest uppercase hidden sm:block">
-                Command <span className="text-cyan-400">Deck</span>
-              </h1>
+           {/* Branding */}
+           <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-2 h-8 bg-cyan-500 rounded-full shadow-[0_0_10px_#22d3ee]" />
+                <div className="absolute top-0 w-2 h-8 bg-cyan-400 blur-md animate-pulse" />
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-xl font-bold text-white tracking-widest uppercase leading-none">
+                  Command <span className="text-cyan-400">Deck</span>
+                </h1>
+                <p className="text-[9px] font-mono text-slate-500 tracking-[0.3em] mt-1">
+                  UNIT MONITORING ONLINE
+                </p>
+              </div>
            </div>
 
-           {/* Right: Simulation Toggle */}
+           {/* Sim Toggle */}
            <button
              onClick={toggleDemoMode}
-             className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-bold uppercase tracking-wider transition-all duration-300
+             data-tour="demo-toggle" // 👈 Target for Tutorial
+             className={`
+               group relative overflow-hidden flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-bold uppercase tracking-wider transition-all duration-300
                ${demoMode 
-                 ? "bg-amber-500/10 border-amber-500 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.3)]" 
+                 ? "bg-amber-900/20 border-amber-500/50 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]" 
                  : "bg-slate-900/50 border-slate-700 text-slate-500 hover:border-cyan-500/50 hover:text-cyan-400"
                }
              `}
            >
              {demoMode ? <Terminal size={14} /> : <Beaker size={14} />}
-             {demoMode ? "Sim Protocol Active" : "Enable Simulation"}
-             {demoMode && <span className="flex w-2 h-2 bg-amber-500 rounded-full animate-pulse ml-1" />}
+             <span className="relative z-10">
+               {demoMode ? "Sim Protocol Active" : "Enable Simulation"}
+             </span>
+             
+             {/* Active Pulse Indicator */}
+             {demoMode && (
+               <span className="flex h-2 w-2 relative ml-1">
+                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                 <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+               </span>
+             )}
            </button>
         </div>
 
-        {/* --- DEMO CONTROLS DRAWER --- */}
+        {/* --- DEMO DRAWER (Collapsible) --- */}
         <AnimatePresence>
           {demoMode && (
             <motion.div
               initial={{ height: 0, opacity: 0, marginBottom: 0 }}
               animate={{ height: "auto", opacity: 1, marginBottom: 24 }}
               exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+              transition={{ duration: 0.4, ease: "circOut" }}
               className="overflow-hidden"
             >
-              <div className="p-4 rounded-2xl bg-slate-900/80 border border-amber-500/20 backdrop-blur-xl relative">
-                {/* Decorative Hazard Strip */}
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
-                
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <ScenarioSlider />
-                  </div>
-                  <div className="space-y-2">
-                    <DemoControls />
+              <div className="p-1 rounded-2xl bg-gradient-to-r from-amber-500/20 via-transparent to-amber-500/20">
+                <div className="p-5 rounded-xl bg-[#0a1020] border border-amber-500/30 relative overflow-hidden">
+                  {/* Stripes Texture */}
+                  <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'repeating-linear-gradient(45deg, #f59e0b 0, #f59e0b 1px, transparent 0, transparent 50%)', backgroundSize: '10px 10px' }} />
+                  
+                  <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+                    <div className="space-y-1">
+                      <h3 className="text-amber-400 font-bold tracking-widest text-sm flex items-center gap-2">
+                        <Radio size={16} className="animate-pulse" />
+                        SIMULATION CONTROLS
+                      </h3>
+                      <p className="text-[10px] font-mono text-amber-500/60">
+                        Adjust parameters to test system resilience. Data is local only.
+                      </p>
+                    </div>
+                    
+                    <div className="flex flex-col gap-4">
+                      <ScenarioSlider />
+                      <DemoControls />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -119,33 +161,28 @@ const RangerDashboard = () => {
           )}
         </AnimatePresence>
 
-        {/* --- MAIN DASHBOARD GRID --- */}
+        {/* --- DASHBOARD GRID --- */}
         <Dashboard isDemoMode={demoMode} />
 
       </motion.div>
 
-      {/* --- MOBILE OVERLAYS & NAV --- */}
-      <MobileDoseModal open={doseOpen} onClose={() => setDoseOpen(false)} />
-      <MobileSymptomModal open={symOpen} onClose={() => setSymOpen(false)} />
+      {/* --- NAVIGATION (Now handles routing internally) --- */}
+      <BottomTabNav />
 
-      <BottomTabNav 
-        onOpenDose={() => setDoseOpen(true)} 
-        onOpenSymptom={() => setSymOpen(true)} 
-      />
-
-      {/* --- TOAST NOTIFICATIONS --- */}
+      {/* --- TOASTS --- */}
       <Toaster
         position="top-right"
         toastOptions={{
           duration: 4000,
           style: {
-            background: "rgba(15,23,42,0.95)",
+            background: "rgba(5, 11, 20, 0.95)",
             color: "#e0faff",
             border: "1px solid rgba(34,211,238,0.2)",
             borderRadius: "12px",
             backdropFilter: "blur(12px)",
             boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
             fontSize: "13px",
+            fontFamily: "monospace",
           },
         }}
       />
