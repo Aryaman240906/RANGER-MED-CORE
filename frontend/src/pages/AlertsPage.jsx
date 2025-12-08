@@ -34,7 +34,7 @@ const pageVariants = {
  */
 export default function AlertsPage() {
   const { alerts, alertsUnacknowledged, demoMode } = useDemoStore();
-  const showTutorial = useTutorialStore((s) => s.showForUser); // 👈 NEW
+  const showTutorial = useTutorialStore((s) => s.showForUser);
   
   // Local State
   const [filter, setFilter] = useState("all"); // all, critical, warning, info

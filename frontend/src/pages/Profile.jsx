@@ -3,22 +3,23 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   Shield, Zap, Activity, Award, Terminal, 
-  LogOut, PlayCircle, Settings 
+  LogOut, PlayCircle, Settings, FileText, Pill, ShieldAlert 
 } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 
 // --- STORES ---
 import { useAvatarStore } from "../store/avatarStore";
 import { useAuthStore } from "../store/authStore";
-import { useTutorialStore } from "../store/tutorialStore"; // 👈 NEW
-import { getStreak } from "../services/localPersistence"; // 👈 NEW
+import { useDemoStore } from "../store/demoStore"; // 👈 NEW
+import { useTutorialStore } from "../store/tutorialStore";
+import { getStreak } from "../services/localPersistence";
 
 // --- COMPONENTS ---
 import AvatarPreview from "../components/profile/AvatarPreview";
 import EnterMorphinGridButton from "../components/profile/EnterMorphinGridButton";
 import AvatarBuilderModal from "../components/avatar/AvatarBuilderModal";
-import BottomTabNav from "../components/global/BottomTabNav"; // 👈 NEW
-import TutorialOverlay from "../components/tutorial/TutorialOverlay"; // 👈 NEW
+import BottomTabNav from "../components/global/BottomTabNav";
+import TutorialOverlay from "../components/tutorial/TutorialOverlay";
 import ConfettiListener from "../components/global/Confetti";
 
 // --- ANIMATION VARIANTS ---
@@ -47,7 +48,8 @@ export default function Profile() {
   // Connect to stores
   const { appliedAvatar, loadFromStorage } = useAvatarStore();
   const { user, logout } = useAuthStore();
-  const { showForUser, openTutorial } = useTutorialStore(); // 👈 NEW
+  const { events } = useDemoStore(); // Access event history for stats
+  const { showForUser, openTutorial } = useTutorialStore();
 
   // --- 1. INITIALIZATION ---
   useEffect(() => {
@@ -97,12 +99,15 @@ export default function Profile() {
             className="flex flex-col items-center gap-4 w-full"
           >
             <div 
-              data-tour="avatar-preview" // 👈 Tutorial Target
+              data-tour="avatar-preview" 
               className="relative group cursor-pointer" 
               onClick={() => setIsBuilderOpen(true)}
             >
               {/* The Preview Component */}
               <AvatarPreview avatar={appliedAvatar} size="lg" />
+              
+              {/* Scanning Ring Animation */}
+              <div className="absolute inset-[-10px] rounded-full border border-cyan-500/20 border-dashed animate-spin-slow opacity-50 pointer-events-none" />
               
               {/* Edit Hint Overlay */}
               <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm border border-cyan-500/50">
@@ -129,7 +134,7 @@ export default function Profile() {
           {/* B. TACTICAL STATS GRID */}
           <motion.div 
             variants={itemVariants} 
-            data-tour="profile-stats" // 👈 Tutorial Target
+            data-tour="profile-stats"
             className="w-full grid grid-cols-3 gap-3"
           >
             <StatBox 
@@ -141,8 +146,8 @@ export default function Profile() {
             />
             <StatBox 
               icon={Activity} 
-              label="XP Level" 
-              value="Lvl 05" 
+              label="Missions" 
+              value={events.length} 
               color="text-cyan-400" 
               glow="shadow-cyan-500/20" 
             />
@@ -158,29 +163,36 @@ export default function Profile() {
           {/* C. MORPHIN GRID ENTRY */}
           <motion.div 
             variants={itemVariants} 
-            data-tour="enter-morphin" // 👈 Tutorial Target
+            data-tour="enter-morphin"
             className="w-full pt-2"
           >
             <EnterMorphinGridButton onOpen={() => setIsBuilderOpen(true)} />
           </motion.div>
 
-          {/* D. SYSTEM ACTIONS (Footer) */}
+          {/* D. TRAINING DECK (Tutorial Replays) */}
+          <motion.div variants={itemVariants} className="w-full pt-4 border-t border-white/5">
+            <h3 className="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-3 text-left">
+              Training Modules
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              <TutorialButton label="Dashboard Brief" onClick={() => openTutorial('dashboard', { mode: 'always' })} />
+              <TutorialButton label="Dose Protocols" onClick={() => openTutorial('dose', { mode: 'always' })} icon={Pill} />
+              <TutorialButton label="Bio-Scan Ops" onClick={() => openTutorial('log', { mode: 'always' })} icon={FileText} />
+              <TutorialButton label="Alert Handling" onClick={() => openTutorial('alerts', { mode: 'always' })} icon={ShieldAlert} />
+            </div>
+          </motion.div>
+
+          {/* E. SYSTEM ACTIONS (Footer) */}
           <motion.div 
             variants={itemVariants}
-            className="w-full grid grid-cols-2 gap-4 pt-6 border-t border-white/5"
+            className="w-full pt-4 border-t border-white/5 flex justify-center"
           >
             <button 
-              onClick={() => openTutorial('dashboard', { mode: 'always' })}
-              className="flex items-center justify-center gap-2 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-cyan-500/30 transition-all text-[10px] text-slate-400 hover:text-cyan-400 font-bold uppercase tracking-wider"
-            >
-              <PlayCircle size={14} /> Replay Briefing
-            </button>
-            
-            <button 
               onClick={logout}
-              className="flex items-center justify-center gap-2 py-2 rounded-lg bg-slate-800/50 hover:bg-red-900/20 border border-slate-700 hover:border-red-500/30 transition-all text-[10px] text-slate-400 hover:text-red-400 font-bold uppercase tracking-wider"
+              className="flex items-center justify-center gap-2 py-2 px-6 rounded-lg bg-slate-800/50 hover:bg-red-900/20 border border-slate-700 hover:border-red-500/30 transition-all text-[10px] text-slate-400 hover:text-red-400 font-bold uppercase tracking-wider group"
             >
-              <LogOut size={14} /> End Session
+              <LogOut size={14} className="group-hover:-translate-x-1 transition-transform" /> 
+              End Session
             </button>
           </motion.div>
 
@@ -200,7 +212,8 @@ export default function Profile() {
   );
 }
 
-// --- SUB-COMPONENT: STAT BOX ---
+// --- SUB-COMPONENTS ---
+
 const StatBox = ({ icon: Icon, label, value, color, glow }) => (
   <div className={`
     group relative p-3 rounded-xl bg-slate-950/40 border border-slate-800 
@@ -215,4 +228,14 @@ const StatBox = ({ icon: Icon, label, value, color, glow }) => (
       <div className="text-[8px] text-slate-500 uppercase tracking-widest font-bold">{label}</div>
     </div>
   </div>
+);
+
+const TutorialButton = ({ label, onClick, icon: Icon = PlayCircle }) => (
+  <button 
+    onClick={onClick}
+    className="flex items-center gap-2 px-3 py-2 rounded bg-slate-900/50 border border-slate-800 hover:border-cyan-500/30 hover:bg-slate-800 transition-all text-[10px] text-slate-400 hover:text-cyan-400 font-bold uppercase tracking-wide text-left"
+  >
+    <Icon size={12} className="shrink-0" />
+    <span className="truncate">{label}</span>
+  </button>
 );

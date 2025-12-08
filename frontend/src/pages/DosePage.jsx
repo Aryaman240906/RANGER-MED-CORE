@@ -7,14 +7,14 @@ import { Toaster } from "react-hot-toast";
 // --- STORES & SERVICES ---
 import { useDemoStore } from "../store/demoStore";
 import { useAuthStore } from "../store/authStore";
-import { useTutorialStore } from "../store/tutorialStore"; // 👈 NEW
+import { useTutorialStore } from "../store/tutorialStore"; // 👈 NEW: Tutorial Engine
 
 // --- COMPONENTS ---
 import DoseConsole from "../components/dose/DoseConsole";
 import CapsuleHistoryTable from "../components/dose/CapsuleHistoryTable";
 import ConfettiListener from "../components/global/Confetti"; 
 import AssistantBubble from "../components/ranger/AssistantBubble";
-import TutorialOverlay from "../components/tutorial/TutorialOverlay"; // 👈 NEW
+import TutorialOverlay from "../components/tutorial/TutorialOverlay"; // 👈 NEW: Overlay UI
 
 // --- ANIMATION VARIANTS ---
 const pageVariants = {
@@ -39,17 +39,17 @@ const panelVariants = {
 export default function DosePage() {
   const { user } = useAuthStore();
   const { doseStreak, stability, demoMode } = useDemoStore();
-  const showTutorial = useTutorialStore((s) => s.showForUser); // 👈 NEW
+  const showTutorial = useTutorialStore((s) => s.showForUser);
   
   // Local state for UI feedback
   const [assistantMessage, setAssistantMessage] = useState("");
 
   // --- 1. TUTORIAL TRIGGER ---
   useEffect(() => {
-    // Slight delay to ensure layout is stable before highlighting
+    // Slight delay ensures the page transition is complete before the tutorial fades in
     const t = setTimeout(() => {
       showTutorial('dose', { mode: demoMode ? 'always' : 'once' });
-    }, 500);
+    }, 600);
     return () => clearTimeout(t);
   }, [demoMode, showTutorial]);
 
@@ -76,7 +76,7 @@ export default function DosePage() {
 
       {/* Global Event Listeners */}
       <ConfettiListener /> 
-      <TutorialOverlay /> {/* 👈 The Tutorial UI Layer */}
+      <TutorialOverlay /> {/* 👈 Renders the walk-through if active */}
       <Toaster position="top-right" />
 
       {/* 2. MAIN CONTENT GRID */}
@@ -106,9 +106,9 @@ export default function DosePage() {
             </div>
           </div>
 
-          {/* Streak Badge */}
+          {/* Streak Badge (Targeted by Tutorial) */}
           <div 
-            data-tour="streak-badge" // 👈 Tutorial Target
+            data-tour="streak-badge" 
             className="flex items-center gap-3 px-4 py-2 rounded-lg bg-black/40 border border-slate-700/50 backdrop-blur-md"
           >
             <div className="flex flex-col items-end">
@@ -130,10 +130,8 @@ export default function DosePage() {
             variants={panelVariants} 
             className="lg:col-span-5 flex flex-col gap-6"
           >
-            {/* The Main Action Panel */}
-            <div data-tour="dose-console"> {/* 👈 Tutorial Target Wrapper */}
-              <DoseConsole />
-            </div>
+            {/* The Main Action Panel (DoseConsole handles its own internal tutorial targeting) */}
+            <DoseConsole />
 
             {/* AI Assistant Context */}
             <div className="hidden lg:block">

@@ -2,7 +2,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { generateTickUpdate } from "../services/demoEngine";
-import { v4 as uuidv4 } from 'uuid'; // Ensure you have uuid or use a helper
+
+// 🆔 ID Generator (Safe Fallback)
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `evt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
 
 // 🛡️ SYSTEM DEFAULTS (Factory Reset State)
 const INITIAL_STATE = {
@@ -23,7 +30,7 @@ const INITIAL_STATE = {
   systemStatus: "ONLINE",
 };
 
-// ⚙️ PHYSICS CONSTANTS
+// ⚙️ PHYSICS CONSTANTS (Deterministic Rules)
 const DOSE_EFFECTS = {
   standard: { stability: 6, readiness: 3 },
   booster: { stability: 12, readiness: 8 },
@@ -36,6 +43,11 @@ const SYMPTOM_IMPACT = {
   high: { stability: -18, readiness: -12 }  // Severity 7-10
 };
 
+/**
+ * 🧠 CENTRAL NERVOUS SYSTEM (STORE)
+ * Manages both the simulation engine AND the user's tactical actions.
+ * Acts as the "Single Source of Truth" for the entire dashboard.
+ */
 export const useDemoStore = create(
   persist(
     (set, get) => ({
@@ -54,7 +66,8 @@ export const useDemoStore = create(
       // =========================================
       ...INITIAL_STATE,
 
-      // Computed property helper (Zustand selector pattern)
+      // --- COMPUTED SELECTORS (Helpers) ---
+      // Used by BottomNav badges and Header alerts
       get alertsUnacknowledged() {
         return get().alerts.filter(a => a.status === 'active').length;
       },
@@ -71,7 +84,7 @@ export const useDemoStore = create(
 
         // 2. Create Timeline Event
         const event = {
-          id: uuidv4(),
+          id: generateId(),
           type: "dose",
           label: `INTAKE: ${payload.capsuleType.toUpperCase()}`,
           description: `Stability +${effect.stability}%`,
@@ -84,7 +97,7 @@ export const useDemoStore = create(
           stability: newStability,
           readiness: newReadiness,
           doseStreak: state.doseStreak + 1,
-          events: [event, ...state.events].slice(0, 50),
+          events: [event, ...state.events].slice(0, 50), // Keep last 50
           assistantMessage: "Capsule metabolized. Neural alignment stabilizing."
         };
       }),
@@ -98,13 +111,13 @@ export const useDemoStore = create(
                      : severity >= 4 ? SYMPTOM_IMPACT.med 
                      : SYMPTOM_IMPACT.low;
 
-        // 1. Apply Damage
+        // 1. Apply Damage (Clamped 0-100)
         const newStability = Math.max(0, state.stability + impact.stability);
         const newReadiness = Math.max(0, state.readiness + impact.readiness);
 
-        // 2. Create Event
+        // 2. Create Timeline Event
         const event = {
-          id: uuidv4(),
+          id: generateId(),
           type: "symptom",
           label: `ANOMALY: ${payload.symptom.toUpperCase()}`,
           description: `Severity ${severity}/10 detected`,
@@ -113,11 +126,11 @@ export const useDemoStore = create(
           ...payload
         };
 
-        // 3. Trigger Alert if Critical
+        // 3. Trigger Alert if Critical (Auto-Escalation Logic)
         let newAlerts = state.alerts;
         if (severity >= 7) {
           const alert = {
-            id: uuidv4(),
+            id: generateId(),
             title: "CRITICAL BIO-SPIKE",
             message: `${payload.symptom} detected at critical levels. Immediate rest protocol advised.`,
             severity: "critical",
@@ -143,7 +156,7 @@ export const useDemoStore = create(
       // 🚨 TACTICAL MODULE: ALERTS
       // =========================================
       addAlert: (alert) => set((state) => ({
-        alerts: [{ ...alert, id: uuidv4(), status: "active", time: new Date().toISOString() }, ...state.alerts]
+        alerts: [{ ...alert, id: generateId(), status: "active", time: new Date().toISOString() }, ...state.alerts]
       })),
 
       acknowledgeAlert: (id) => set((state) => ({
@@ -176,8 +189,10 @@ export const useDemoStore = create(
 
         const tickRate = 1000 / (speed || 1);
 
+        // The Heartbeat of the App
         const interval = setInterval(() => {
           const currentState = get();
+          // Ask the engine for the next frame based on physics
           const update = generateTickUpdate(currentState);
           set(update); 
         }, tickRate);
@@ -204,14 +219,16 @@ export const useDemoStore = create(
         const { running, startSimulation, pauseSimulation } = get();
         set({ speed: newSpeed });
         if (running) {
-          pauseSimulation();
+          pauseSimulation(); // restart timer with new speed
           startSimulation();
         }
       },
 
       // --- UTILS ---
+      
+      // Generic event pusher (for system logs)
       addEvent: (event) => set((state) => ({ 
-        events: [{ ...event, _receivedAt: Date.now() }, ...state.events].slice(0, 50) 
+        events: [{ ...event, id: generateId(), _receivedAt: Date.now() }, ...state.events].slice(0, 50) 
       })),
 
       setAssistantMessage: (msg) => set({ assistantMessage: msg }),
@@ -220,13 +237,16 @@ export const useDemoStore = create(
     {
       name: "ranger-core-storage", 
       partialize: (state) => ({ 
+        // PERSISTENCE WHITELIST
         demoMode: state.demoMode,
         scenario: state.scenario,
         speed: state.speed,
         doseStreak: state.doseStreak,
-        // We persist alerts and logs so user doesn't lose history on refresh
         events: state.events,
-        alerts: state.alerts
+        alerts: state.alerts,
+        // We persist stability/readiness so refresh doesn't jar the user
+        stability: state.stability, 
+        readiness: state.readiness
       }),
     }
   )

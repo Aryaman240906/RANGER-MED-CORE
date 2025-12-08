@@ -1,7 +1,7 @@
 // src/pages/LogPage.jsx
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Activity, ClipboardPlus, Stethoscope, FileText } from "lucide-react";
+import { Activity, ClipboardPlus, Stethoscope, FileText, Database } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 
 // --- STORES ---
@@ -39,25 +39,27 @@ const panelVariants = {
 export default function LogPage() {
   const { user } = useAuthStore();
   const { events, demoMode } = useDemoStore();
-  const showTutorial = useTutorialStore((s) => s.showForUser); // 👈 NEW
+  const showTutorial = useTutorialStore((s) => s.showForUser);
   
   // Compute recent symptom context for the assistant
   const [assistantMessage, setAssistantMessage] = useState("Diagnostics Module Initialized. Awaiting Input.");
 
   // --- 1. TUTORIAL TRIGGER ---
   useEffect(() => {
+    // Delay ensures smooth entry before overlay appears
     const t = setTimeout(() => {
       showTutorial('log', { mode: demoMode ? 'always' : 'once' });
-    }, 500);
+    }, 600);
     return () => clearTimeout(t);
   }, [demoMode, showTutorial]);
 
   // --- 2. ASSISTANT LOGIC ---
   useEffect(() => {
+    // Check the most recent symptom logged to give feedback
     const lastSymptom = events.find(e => e.type === 'symptom');
     if (lastSymptom) {
       if (lastSymptom.severity > 7) {
-        setAssistantMessage(`CRITICAL: ${lastSymptom.symptom} detected at high severity. Rest protocols advised immediately.`);
+        setAssistantMessage(`CRITICAL ALERT: ${lastSymptom.symptom} detected at high severity. Rest protocols advised immediately.`);
       } else if (lastSymptom.severity > 4) {
         setAssistantMessage(`Analysis: ${lastSymptom.symptom} recorded. Monitor vitals for escalation.`);
       } else {
@@ -136,6 +138,8 @@ export default function LogPage() {
             >
                {/* Decorative Header Bar */}
                <div className="h-1 w-full bg-gradient-to-r from-emerald-500/50 via-cyan-500/50 to-transparent absolute top-0 left-0" />
+               
+               {/* Reused Form Component from Dashboard */}
                <BioScanForm />
             </div>
 
@@ -167,9 +171,15 @@ export default function LogPage() {
                 </div>
               </div>
 
-              {/* The Diagnostics Panel Component */}
+              {/* The Diagnostics Panel Component (History & Trends) */}
               <div className="flex-1 relative overflow-hidden p-4">
                 <DiagnosticsPanel />
+              </div>
+
+              {/* Footer Decoration */}
+              <div className="p-2 bg-black/40 border-t border-white/5 flex justify-between items-center text-[9px] font-mono text-slate-600 uppercase tracking-wider">
+                <span>Database: Read-Only</span>
+                <Database size={10} />
               </div>
 
             </div>

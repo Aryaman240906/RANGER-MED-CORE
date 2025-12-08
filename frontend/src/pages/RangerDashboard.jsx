@@ -2,11 +2,11 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Toaster, toast } from "react-hot-toast";
-import { Beaker, Power, Terminal, Radio } from "lucide-react";
+import { Beaker, Terminal, Radio } from "lucide-react";
 
 // --- STORES ---
 import { useDemoStore } from "../store/demoStore";
-import { useTutorialStore } from "../store/tutorialStore"; // 👈 NEW
+import { useTutorialStore } from "../store/tutorialStore";
 
 // --- COMPONENTS ---
 import Dashboard from "../components/ranger/Dashboard";
@@ -15,22 +15,24 @@ import ScenarioSlider from "../components/demo/ScenarioSlider";
 import DemoControls from "../components/demo/DemoControls";
 import IntroAnimation from "../components/global/IntroAnimation";
 import ConfettiListener from "../components/global/Confetti";
-import TutorialOverlay from "../components/tutorial/TutorialOverlay"; // 👈 NEW
+import TutorialOverlay from "../components/tutorial/TutorialOverlay";
 
 const RangerDashboard = () => {
-  // Intro Animation State
+  // Intro State: Check session storage to prevent re-playing intro on simple refreshes if desired, 
+  // but usually for a 'Dashboard' landing, we show it once per session or mount.
   const [showIntro, setShowIntro] = useState(true);
 
   // Store Access
   const demoMode = useDemoStore((s) => s.demoMode);
   const toggleDemoMode = useDemoStore((s) => s.toggleDemoMode);
-  const showTutorial = useTutorialStore((s) => s.showForUser); // 👈 NEW
+  const showTutorial = useTutorialStore((s) => s.showForUser);
 
-  // --- 1. TUTORIAL TRIGGER ---
-  // Only check for tutorial after the intro sequence completes
+  // --- 1. SEQUENCE ORCHESTRATOR ---
+  // Called when the Intro Animation finishes (approx 3-4s)
   const handleIntroComplete = () => {
     setShowIntro(false);
-    // Slight delay to let the dashboard fade in before the tutorial overlay appears
+    
+    // Launch Briefing (Tutorial) after a beat
     setTimeout(() => {
       showTutorial('dashboard', { mode: demoMode ? 'always' : 'once' });
     }, 800);
@@ -41,10 +43,15 @@ const RangerDashboard = () => {
     const handleSync = (e) => {
       if (e.detail?.type === "synced") {
         toast.success(
-          <span className="font-mono text-xs">
-            UPLINK ESTABLISHED: Data Synced
-          </span>, 
-          { id: "sync-success", icon: "📡" }
+          <div className="flex flex-col">
+            <span className="font-bold text-xs uppercase tracking-widest">Uplink Established</span>
+            <span className="text-[10px] opacity-80 font-mono">Telemetry Synced with Command</span>
+          </div>,
+          { 
+            id: "sync-success", 
+            icon: "📡",
+            style: { background: "#050b14", border: "1px solid #22d3ee", color: "#22d3ee" }
+          }
         );
       }
     };
@@ -55,11 +62,11 @@ const RangerDashboard = () => {
   return (
     <div className="min-h-screen bg-[#050b14] relative overflow-hidden pb-28">
       
-      {/* 👂 GLOBAL EVENT LISTENERS */}
+      {/* 👂 GLOBAL LAYERS */}
       <ConfettiListener /> 
-      <TutorialOverlay /> {/* 👈 The Tutorial UI Layer */}
+      <TutorialOverlay /> {/* 👈 Tutorial UI */}
 
-      {/* 🎬 INTRO SEQUENCE */}
+      {/* 🎬 INTRO ANIMATION */}
       <AnimatePresence>
         {showIntro && <IntroAnimation onComplete={handleIntroComplete} />}
       </AnimatePresence>
@@ -97,10 +104,10 @@ const RangerDashboard = () => {
               </div>
            </div>
 
-           {/* Sim Toggle */}
+           {/* Simulation Toggle */}
            <button
              onClick={toggleDemoMode}
-             data-tour="demo-toggle" // 👈 Target for Tutorial
+             data-tour="demo-toggle" // 👈 Tutorial Target
              className={`
                group relative overflow-hidden flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-bold uppercase tracking-wider transition-all duration-300
                ${demoMode 
@@ -114,7 +121,7 @@ const RangerDashboard = () => {
                {demoMode ? "Sim Protocol Active" : "Enable Simulation"}
              </span>
              
-             {/* Active Pulse Indicator */}
+             {/* Active Indicator */}
              {demoMode && (
                <span className="flex h-2 w-2 relative ml-1">
                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
@@ -146,7 +153,7 @@ const RangerDashboard = () => {
                         SIMULATION CONTROLS
                       </h3>
                       <p className="text-[10px] font-mono text-amber-500/60">
-                        Adjust parameters to test system resilience. Data is local only.
+                        Adjust parameters to stress-test system resilience. Data is local to this session.
                       </p>
                     </div>
                     
@@ -161,15 +168,16 @@ const RangerDashboard = () => {
           )}
         </AnimatePresence>
 
-        {/* --- DASHBOARD GRID --- */}
+        {/* --- MAIN DASHBOARD VISUALIZATION --- */}
+        {/* Pass demoMode so the dashboard knows which data source to render */}
         <Dashboard isDemoMode={demoMode} />
 
       </motion.div>
 
-      {/* --- NAVIGATION (Now handles routing internally) --- */}
+      {/* --- NAVIGATION DECK --- */}
       <BottomTabNav />
 
-      {/* --- TOASTS --- */}
+      {/* --- NOTIFICATIONS --- */}
       <Toaster
         position="top-right"
         toastOptions={{

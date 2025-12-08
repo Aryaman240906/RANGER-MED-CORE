@@ -1,81 +1,75 @@
 // src/components/ranger/Dashboard.jsx
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 // --- STORES ---
 import { useDemoStore } from "../../store/demoStore";
-import { useAuthStore } from "../../store/authStore";   // ✅ FIXED
+import { useAuthStore } from "../../store/authStore";
 
 // --- COMPONENTS ---
 import StabilityGauge from './StabilityGauge';
 import ReadinessBar from './ReadinessBar';
 import AICard from './AICard';
-import CapsuleButton from './CapsuleButton';
-import SymptomForm from './SymptomForm';
+import CapsuleButton from './CapsuleButton'; // Assuming this triggers store actions directly
+import SymptomForm from './SymptomForm';     // Assuming this triggers store actions directly
 import Timeline from './Timeline';
 import AssistantBubble from './AssistantBubble';
 import RangerHeader from './RangerHeader';
 import Badges from './Badges';
 import Hologram3DGauge from './Hologram3DGauge';
 
+// --- ANIMATION VARIANTS ---
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1, delayChildren: 0.1 }
+  }
+};
 
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: { y: 0, opacity: 1, transition: { duration: 0.5, ease: "easeOut" } }
+};
+
+/**
+ * 🖥️ MAIN DASHBOARD GRID
+ * The primary view for the Ranger Med-Core system.
+ * Aggregates Telemetry, Actions, and Logs into a unified tactical view.
+ */
 const Dashboard = ({ isDemoMode = false }) => {
-  // 1. Get User Info
+  const navigate = useNavigate();
+  
+  // 1. User Context
   const { user } = useAuthStore();
 
-  // 2. Get Live Simulation Data
-  const demoState = useDemoStore((s) => ({
-    stability: s.stability,
-    readiness: s.readiness,
-    risk: s.riskScore,
-    confidence: s.confidence,
-    events: s.events,
-    msg: s.assistantMessage,
-    trend: s.trend
-  }));
-
-  // 3. Define Static Fallback (Standard Mode)
-  const staticData = {
-    stability: 76,
-    readiness: 88,
-    risk: 12,
-    confidence: 98,
-    events: [
-      { id: 1, time: "08:00", label: "Capsule Taken", type: "success" },
-      { id: 2, time: "12:00", label: "Headache Logged", type: "warning" },
-      { id: 3, time: "15:30", label: "Hydration Alert", type: "info" },
-      { id: 4, time: "18:00", label: "AI Risk Update", type: "success" }
-    ],
-    msg: "System Nominal. Waiting for input.",
-  };
-
-  // 4. Determine Active Data Source
-  const current = isDemoMode ? demoState : staticData;
-
-  // --- ANIMATION VARIANTS ---
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1, transition: { duration: 0.5 } }
-  };
+  // 2. Telemetry Stream (Unified Source)
+  // We pull from the store regardless of mode. The store handles whether data 
+  // comes from the Simulation Engine or User Input.
+  const { 
+    stability, 
+    readiness, 
+    riskScore, 
+    confidence, 
+    trend, 
+    events, 
+    assistantMessage 
+  } = useDemoStore();
 
   return (
     <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="w-full space-y-6"
+      className="w-full space-y-6 pb-6"
     >
-      {/* HEADER: Pass active status so header knows if we are Simulating */}
+      {/* HEADER HUD */}
       <motion.div variants={itemVariants}>
-        <RangerHeader user={user} status={isDemoMode ? "SIMULATION" : "ACTIVE"} />
+        <RangerHeader 
+          user={user} 
+          status={isDemoMode ? "SIMULATION" : "ACTIVE"} 
+        />
       </motion.div>
 
       {/* MAIN GRID LAYOUT */}
@@ -84,59 +78,84 @@ const Dashboard = ({ isDemoMode = false }) => {
         {/* --- LEFT COLUMN (Metrics & Actions) --- */}
         <div className="lg:col-span-8 space-y-6">
           
-          {/* Top Row - Gauges */}
+          {/* A. Vitals Deck */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            <motion.div variants={itemVariants}>
-              <StabilityGauge value={current.stability} trend={current.trend} />
+            {/* Stability */}
+            <motion.div 
+              variants={itemVariants} 
+              data-tour="stability-gauge" // 👈 Tutorial Target
+              className="h-full"
+            >
+              <StabilityGauge value={stability} trend={trend} />
             </motion.div>
             
-            <motion.div variants={itemVariants}>
-              {/* Note: Ensure ReadinessBar accepts 'score' or 'value' prop. Using 'value' to match your old code */}
-              <ReadinessBar value={current.readiness} />
+            {/* Readiness */}
+            <motion.div 
+              variants={itemVariants}
+              data-tour="readiness-bar" // 👈 Tutorial Target
+              className="h-full"
+            >
+              <ReadinessBar value={readiness} />
             </motion.div>
             
-            <motion.div variants={itemVariants} className="hidden xl:block h-full min-h-[140px]">
-              {/* We pass stability to control the hologram rotation speed in the future */}
-              <Hologram3DGauge stability={current.stability} />
+            {/* 3D Core (Desktop Only) */}
+            <motion.div 
+              variants={itemVariants} 
+              className="hidden xl:block h-full min-h-[200px]"
+            >
+              <Hologram3DGauge stability={stability} />
             </motion.div>
           </div>
 
-          {/* AI Card - Responsive to Risk Score */}
-          <motion.div variants={itemVariants}>
+          {/* B. Cortex Intelligence */}
+          <motion.div 
+            variants={itemVariants}
+            data-tour="ai-card" // 👈 Tutorial Target
+          >
             <AICard 
-              risk={current.risk} 
-              confidence={current.confidence}
-              recommendation={isDemoMode ? "Telemetry fluctuation detected. Monitor vitals." : undefined}
+              risk={riskScore} 
+              confidence={confidence}
+              recommendation={isDemoMode ? "Simulation Running: Monitor telemetry variances." : undefined}
             />
           </motion.div>
 
-          {/* Action Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <motion.div variants={itemVariants}>
+          {/* C. Quick Action Deck */}
+          <div 
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+            data-tour="quick-actions" // 👈 Tutorial Target
+          >
+            <motion.div variants={itemVariants} onClick={() => navigate('/dose')}>
               <CapsuleButton />
             </motion.div>
-            <motion.div variants={itemVariants}>
-              <SymptomForm />
+            <motion.div variants={itemVariants} onClick={() => navigate('/log')}>
+              <SymptomForm /> {/* Note: This might be a mini-version or direct link */}
             </motion.div>
           </div>
 
-          {/* Badges / Achievements */}
+          {/* D. Achievements */}
           <motion.div variants={itemVariants}>
             <Badges />
           </motion.div>
         </div>
 
-        {/* --- RIGHT COLUMN (Timeline) --- */}
-        <div className="lg:col-span-4 space-y-6">
-          <motion.div variants={itemVariants} className="h-full">
-            {/* Pass the dynamic events array */}
-            <Timeline events={current.events} />
+        {/* --- RIGHT COLUMN (Timeline Stream) --- */}
+        <div className="lg:col-span-4 space-y-6 flex flex-col h-full">
+          <motion.div 
+            variants={itemVariants} 
+            className="h-full min-h-[500px]"
+            data-tour="timeline" // 👈 Tutorial Target
+          >
+            {/* Timeline now handles its own internal filtering/styles 
+              based on the unified 'events' array from the store.
+            */}
+            <Timeline events={events} />
           </motion.div>
         </div>
       </div>
 
-      {/* Floating Assistant - Always available, updates with context */}
-      <AssistantBubble message={current.msg} />
+      {/* Floating Assistant (Context Aware) */}
+      <AssistantBubble message={assistantMessage} />
+      
     </motion.div>
   );
 };

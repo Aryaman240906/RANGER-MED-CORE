@@ -50,6 +50,7 @@ export default function AvatarControls({
         initial={{ x: -50, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ delay: 0.2, duration: 0.5 }}
+        data-tour="identity-matrix" // 👈 Tutorial Target
         className="
           pointer-events-auto
           relative md:absolute md:left-8 md:top-1/2 md:-translate-y-1/2 
@@ -124,6 +125,7 @@ export default function AvatarControls({
         initial={{ x: 50, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ delay: 0.3, duration: 0.5 }}
+        data-tour="energy-dynamics" // 👈 Tutorial Target
         className="
           pointer-events-auto
           relative md:absolute md:right-8 md:top-1/2 md:-translate-y-1/2 
