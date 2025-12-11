@@ -1,146 +1,196 @@
 // src/services/demoEngine.js
+import { createRNG } from './demoSeededRNG';
 
 /**
- * 🛠️ MATH HELPERS
- * High-precision clamping and randomization for smooth UI animations.
+ * 🌌 RANGER PHYSICS ENGINE (V2.0 - DETERMINISTIC)
+ * A seedable, scenario-based simulation engine for generating tactical telemetry.
+ * * DESIGN PHILOSOPHY:
+ * - Deterministic: Same seed = Same outcome. Essential for demos/judging.
+ * - Organic: Values don't just "jump"; they drift, recover, and spike like bio-signals.
+ * - Integrated: Generates events compatible with the main DataStore schemas.
  */
-const rand = (min, max) => Math.random() * (max - min) + min;
-const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
-const chance = (percentage) => Math.random() * 100 < percentage;
 
-const getTimestamp = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+// --- 1. ENGINE STATE (Module Level) ---
+// This allows the store to simply call 'generateTickUpdate' without managing the RNG instance.
+let rng = createRNG(Date.now());
 
 /**
- * ⚙️ SCENARIO PHYSICS
- * Defines how the "biological engine" behaves in different modes.
- *
- * drift: Magnitude of random fluctuation (volatility).
- * bias: Natural tendency (-0.1 = slowly dying, +0.1 = slowly healing).
- * eventChance: % chance per tick to trigger a timeline event.
- * critChance: % chance that an event is a "Danger" type.
+ * Re-initializes the physics engine with a specific entropy seed.
+ * Called by DemoControls when the user hits "Reset" or enters a custom seed.
  */
-const SCENARIO_CONFIG = {
-  calm:       { drift: 0.15, bias: 0.05,  eventChance: 1.5, critChance: 0 },
-  normal:     { drift: 0.4,  bias: 0.0,   eventChance: 5,   critChance: 10 },
-  aggressive: { drift: 1.2,  bias: -0.15, eventChance: 12,  critChance: 30 },
-  unstable:   { drift: 2.5,  bias: -0.4,  eventChance: 25,  critChance: 60 },
+export const seedEngine = (seed) => {
+  rng = createRNG(seed);
+  // console.debug(`[Physics] Engine re-seeded: ${seed}`);
 };
 
-/**
- * 📚 LORE DATABASE
- * Procedural text generation for Sci-Fi immersion.
- */
-const TEXT_BANKS = {
-  success: [
-    "Capsule metabolization complete", "Neural sync nominal", "Adrenaline levels stabilized", 
-    "Vitals optimal", "Bio-monitor connection secure", "Rapid recovery cycle active"
-  ],
-  warning: [
-    "Mild fatigue markers", "Elevated heart rate", "Cortisol spike detected", 
-    "Hydration levels dropping", "Minor cognitive drift", "Oxygen efficiency 94%"
-  ],
-  danger: [
-    "CRITICAL: Neural desync", "DANGER: Hypoxia warning", "System Stress overload", 
-    "Adrenal failure imminent", "Vision telemetry lost", "Core stability failure"
-  ],
-  info: [
-    "Mission telemetry update", "Environment scan complete", "HQ data packet received", 
-    "Background synthesis running", "Auto-logging biometrics"
-  ],
-  assistant: [
-    "⚠️ Cognitive load high. Focus breathing.",
-    "🛡️ System suggests hydration in T-minus 10m.",
-    "📉 Stability trending down. Advise caution.",
-    "✅ You are operating at peak efficiency, Ranger.",
-    "🧠 Neural patterns indicate mild stress. Compensating.",
-    "💊 Next capsule dose window opening soon.",
-    "📡 Telemetry sync with HQ established."
-  ]
+// --- 2. SCENARIO CONFIGURATION ---
+const SCENARIOS = {
+  calm: {
+    volatility: 0.2, // Very stable
+    bias: 0.05,      // Slowly heals
+    eventChance: 0.02,
+    maxSeverity: 3   // Minor symptoms only
+  },
+  normal: {
+    volatility: 0.8,
+    bias: 0.0,       // Neutral drift
+    eventChance: 0.05,
+    maxSeverity: 6
+  },
+  aggressive: {
+    volatility: 2.5, // High variance
+    bias: -0.15,     // Slowly degrades
+    eventChance: 0.12,
+    maxSeverity: 9
+  },
+  unstable: {
+    volatility: 5.0, // Chaos
+    bias: -0.4,      // Rapid crash
+    eventChance: 0.25,
+    maxSeverity: 10
+  }
 };
 
+// --- 3. LORE DATABANKS ---
+const SYMPTOMS = ["Cephalic Pressure", "Visual Artifacts", "Tremor", "Nausea", "Core Fatigue", "Cognitive Drift"];
+const ALERTS = ["Telemetry Desync", "Vitals Critical", "Pattern Anomaly", "System Stress"];
+
 /**
- * 🚀 MAIN ENGINE
- * Generates the next "Frame" of the simulation.
- * Called by demoStore every tick (e.g., 1000ms / speed).
+ * 🚀 THE TICK
+ * Calculates the next frame of the simulation.
+ * @param {Object} state - Current Zustand state
  */
-export function generateTickUpdate(state) {
+export const generateTickUpdate = (state) => {
   const { stability, readiness, scenario, events } = state;
+  const config = SCENARIOS[scenario] || SCENARIOS.normal;
+
+  // --- A. BIOLOGICAL PHYSICS (Brownian Motion with Homeostasis) ---
   
-  // 1. Load Physics Profile
-  const config = SCENARIO_CONFIG[scenario] || SCENARIO_CONFIG.normal;
+  // 1. Noise: Random fluctuation based on volatility
+  const noise = (rng.random() - 0.5) * config.volatility;
 
-  // 2. Calculate Biological Drift (Brownian Motion + Bias)
-  // We add 'Bias' so Aggressive modes naturally degrade over time without intervention.
-  const stabDrift = (Math.random() - 0.5) * config.drift + config.bias;
-  const readDrift = (Math.random() - 0.5) * (config.drift * 0.8) + (config.bias * 0.5);
+  // 2. Gravity: Natural pull towards baseline (Homeostasis) or crash (Entropy)
+  // If stability is high (>80), gravity pulls up slightly (momentum).
+  // If low (<40), gravity pulls down (spiral).
+  let gravity = 0;
+  if (stability > 80) gravity = 0.05;
+  else if (stability < 40) gravity = -0.1;
+  
+  // 3. Apply Forces
+  let nextStability = stability + noise + gravity + config.bias;
+  nextStability = Math.max(0, Math.min(100, nextStability));
 
-  let newStability = clamp(stability + stabDrift, 0, 100);
-  let newReadiness = clamp(readiness + readDrift, 0, 100);
+  // 4. Readiness lags behind stability (Recovery takes time)
+  let nextReadiness = readiness + ((nextStability - readiness) * 0.1);
+  nextReadiness = Math.max(0, Math.min(100, nextReadiness));
 
-  // 3. Generate Timeline Events (Procedural)
+
+  // --- B. PROCEDURAL EVENT GENERATION ---
+  
   let newEvent = null;
-  let newEventsList = events;
+  let newAlert = null;
 
-  if (chance(config.eventChance)) {
-    // Determine Event Severity
-    let type = "info";
-    const roll = Math.random() * 100;
-    
-    if (roll < config.critChance) type = "danger";
-    else if (roll < config.critChance + 30) type = "warning";
-    else if (roll < config.critChance + 60) type = "success";
+  // Roll for event based on scenario chance
+  if (rng.chance(config.eventChance)) {
+    const roll = rng.random();
 
-    // Apply Impact to Stats
-    if (type === "danger") newStability -= rand(4, 10);
-    if (type === "warning") newStability -= rand(1, 4);
-    if (type === "success") newStability += rand(2, 5);
+    // 30% Chance: Simulated Auto-Dose (Recovery)
+    if (roll < 0.3 && stability < 70) {
+      nextStability += rng.range(5, 15);
+      newEvent = {
+        id: `sim-dose-${Date.now()}`,
+        type: 'dose',
+        label: "AUTO-INJECT: STABILIZER",
+        description: "Emergency Protocol Triggered",
+        time: new Date().toLocaleTimeString(),
+        timestamp: new Date().toISOString(),
+        source: 'simulation',
+        capsuleType: 'emergency',
+        doseAmount: 1
+      };
+    } 
+    // 50% Chance: Symptom Spike (Damage)
+    else if (roll < 0.8) {
+      const severity = rng.range(1, config.maxSeverity);
+      const symptom = SYMPTOMS[rng.range(0, SYMPTOMS.length - 1)];
+      nextStability -= severity * 1.5;
+      
+      newEvent = {
+        id: `sim-sym-${Date.now()}`,
+        type: 'symptom',
+        label: `DETECTED: ${symptom.toUpperCase()}`,
+        description: `Severity Level ${severity}/10`,
+        time: new Date().toLocaleTimeString(),
+        timestamp: new Date().toISOString(),
+        source: 'simulation',
+        severity: severity,
+        symptom: symptom
+      };
 
-    // Clamp again after impact
-    newStability = clamp(newStability, 0, 100);
-
-    // Pick random lore text
-    const label = TEXT_BANKS[type][Math.floor(Math.random() * TEXT_BANKS[type].length)];
-
-    newEvent = {
-      id: crypto.randomUUID(),
-      time: getTimestamp(),
-      label: label,
-      type: type,
-    };
-
-    // Add to list and slice to keep memory low (Max 20 items)
-    newEventsList = [newEvent, ...events].slice(0, 20);
+      // Critical escalation logic
+      if (severity >= 8) {
+        newAlert = {
+          id: `sim-alert-${Date.now()}`,
+          title: "CRITICAL VITALS",
+          message: `${symptom} exceeding safety limits. Immediate intervention required.`,
+          severity: "critical",
+          status: "active",
+          time: new Date().toISOString()
+        };
+      }
+    }
+    // 20% Chance: System Alert (Info)
+    else {
+      newEvent = {
+        id: `sim-info-${Date.now()}`,
+        type: 'warning',
+        label: "SYSTEM SCAN COMPLETE",
+        description: "No new anomalies detected.",
+        time: new Date().toLocaleTimeString(),
+        timestamp: new Date().toISOString(),
+        source: 'simulation'
+      };
+    }
   }
 
-  // 4. Generate AI Assistant Message (Rare)
-  let assistantMessage = state.assistantMessage; // Keep old message by default
-  // 5% chance usually, but higher if an event just happened
-  if (chance(newEvent ? 20 : 3)) { 
-    assistantMessage = TEXT_BANKS.assistant[Math.floor(Math.random() * TEXT_BANKS.assistant.length)];
-  }
-
-  // 5. Calculate Derivatives (Trend & Risk)
+  // --- C. DERIVED METRICS ---
+  
+  // Trend Analysis
   let trend = "Stable";
-  const delta = newStability - stability;
-  if (delta > 0.1) trend = "Improving";
-  if (delta < -0.1) trend = "Declining";
+  if (nextStability > stability + 0.2) trend = "Improving";
+  if (nextStability < stability - 0.2) trend = "Declining";
 
-  // Risk is inverse of stability, but adds 'noise' based on volatility (drift)
-  // This makes the risk gauge 'jitter' more in unstable modes
-  const noise = (Math.random() - 0.5) * (config.drift * 5); 
-  const riskScore = clamp(Math.round((100 - newStability) + noise), 0, 100);
+  // Risk Calculation (Inverse of stability + volatility penalty)
+  let riskScore = (100 - nextStability) + (config.volatility * 2);
+  riskScore = Math.max(0, Math.min(100, Math.round(riskScore)));
 
-  // Confidence drops if stability is low OR if volatility is high
-  const confidence = clamp(Math.round(newStability * 0.8 + 20 - (config.drift * 5)), 10, 99);
+  // Confidence (AI certainty drops in chaos)
+  let confidence = 100 - (config.volatility * 5);
+  confidence = Math.max(20, Math.min(99, Math.round(confidence)));
 
-  // 6. Return Payload (Precision formatting included)
-  return {
-    stability: Number(newStability.toFixed(2)), // Keep 2 decimals for smooth graph lerping
-    readiness: Number(newReadiness.toFixed(2)),
+  // --- D. OUTPUT PAYLOAD ---
+  
+  const updates = {
+    stability: Number(nextStability.toFixed(2)),
+    readiness: Number(nextReadiness.toFixed(2)),
     trend,
-    riskScore: Math.round(riskScore), // Integers for UI display
-    confidence: Math.round(confidence),
-    assistantMessage,
-    ...(newEvent ? { events: newEventsList } : {}), // Only update events if changed
+    riskScore,
+    confidence
   };
-}
+
+  if (newEvent) {
+    // Append to event log (Max 50 items)
+    updates.events = [newEvent, ...state.events].slice(0, 50);
+    
+    // Update assistant based on event type
+    if (newEvent.type === 'dose') updates.assistantMessage = "Stabilizing... Recovery sequence active.";
+    if (newEvent.type === 'symptom') updates.assistantMessage = `Anomaly detected: ${newEvent.label}. Analyzing impact.`;
+  }
+
+  if (newAlert) {
+    updates.alerts = [newAlert, ...state.alerts];
+    updates.assistantMessage = "CRITICAL ALERT: Officer Down Protocol recommended.";
+  }
+
+  return updates;
+};

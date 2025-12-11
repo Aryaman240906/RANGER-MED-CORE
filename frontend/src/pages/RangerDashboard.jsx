@@ -12,14 +12,18 @@ import { useTutorialStore } from "../store/tutorialStore";
 import Dashboard from "../components/ranger/Dashboard";
 import BottomTabNav from "../components/global/BottomTabNav";
 import ScenarioSlider from "../components/demo/ScenarioSlider";
-import DemoControls from "../components/demo/DemoControls";
+
+// 👇 FIX: Import 'HeroAnimation' and rename it to 'DemoControlsPanel' for use in this file
+// Note: This matches the default export from your new HeroAnimation file.
+import DemoControlsPanel from "../components/landing/HeroAnimation"; 
+
+import DemoBanner from "../components/demo/DemoBanner";
 import IntroAnimation from "../components/global/IntroAnimation";
 import ConfettiListener from "../components/global/Confetti";
 import TutorialOverlay from "../components/tutorial/TutorialOverlay";
 
 const RangerDashboard = () => {
-  // Intro State: Check session storage to prevent re-playing intro on simple refreshes if desired, 
-  // but usually for a 'Dashboard' landing, we show it once per session or mount.
+  // Intro State
   const [showIntro, setShowIntro] = useState(true);
 
   // Store Access
@@ -64,7 +68,8 @@ const RangerDashboard = () => {
       
       {/* 👂 GLOBAL LAYERS */}
       <ConfettiListener /> 
-      <TutorialOverlay /> {/* 👈 Tutorial UI */}
+      <TutorialOverlay /> 
+      <DemoBanner /> {/* 👈 Persistent Simulation Status */}
 
       {/* 🎬 INTRO ANIMATION */}
       <AnimatePresence>
@@ -83,7 +88,7 @@ const RangerDashboard = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: showIntro ? 0 : 1 }}
         transition={{ duration: 1, ease: "easeOut" }}
-        className="relative z-10 max-w-7xl mx-auto px-4 pt-6"
+        className="relative z-10 max-w-7xl mx-auto px-4 pt-12" // Increased pt for banner
       >
         
         {/* --- TOP BAR: COMMAND HEADER --- */}
@@ -107,7 +112,7 @@ const RangerDashboard = () => {
            {/* Simulation Toggle */}
            <button
              onClick={toggleDemoMode}
-             data-tour="demo-toggle" // 👈 Tutorial Target
+             data-tour="demo-toggle" 
              className={`
                group relative overflow-hidden flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-bold uppercase tracking-wider transition-all duration-300
                ${demoMode 
@@ -158,8 +163,9 @@ const RangerDashboard = () => {
                     </div>
                     
                     <div className="flex flex-col gap-4">
+                      {/* Integrated Control Panel */}
+                      <DemoControlsPanel />
                       <ScenarioSlider />
-                      <DemoControls />
                     </div>
                   </div>
                 </div>
@@ -169,7 +175,6 @@ const RangerDashboard = () => {
         </AnimatePresence>
 
         {/* --- MAIN DASHBOARD VISUALIZATION --- */}
-        {/* Pass demoMode so the dashboard knows which data source to render */}
         <Dashboard isDemoMode={demoMode} />
 
       </motion.div>

@@ -1,13 +1,15 @@
 // src/components/ranger/Timeline.jsx
-import React, { useMemo, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useMemo, useRef, useEffect, useState } from "react";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { 
   CheckCircle, AlertTriangle, Info, 
-  Zap, Clock, ShieldAlert, Activity, FileText, Pill 
+  Zap, Clock, ShieldAlert, Activity, Pill, 
+  Terminal, ChevronDown, Database 
 } from "lucide-react";
 
 /**
- * 🎨 TACTICAL EVENT STYLES (Expanded Map)
+ * 🎨 TACTICAL EVENT STYLES
+ * Maps simulation event types to visual themes.
  */
 const getEventStyle = (type) => {
   switch (type) {
@@ -17,32 +19,36 @@ const getEventStyle = (type) => {
         color: "text-emerald-400", 
         border: "border-emerald-500/30",
         bg: "bg-emerald-900/10",
-        shadow: "shadow-[0_0_10px_rgba(16,185,129,0.1)]"
+        shadow: "shadow-[0_0_15px_rgba(16,185,129,0.15)]",
+        line: "from-emerald-500"
       };
-    case "dose": // 💊 NEW: Capsule Intake
+    case "dose": 
       return { 
         icon: Pill, 
         color: "text-cyan-400", 
         border: "border-cyan-500/30", 
         bg: "bg-cyan-900/10",
-        shadow: "shadow-[0_0_15px_rgba(34,211,238,0.2)]"
+        shadow: "shadow-[0_0_15px_rgba(34,211,238,0.2)]",
+        line: "from-cyan-500"
       };
-    case "symptom": // 🧬 NEW: Bio-Logs
+    case "symptom": 
       return { 
         icon: Activity, 
         color: "text-fuchsia-400", 
         border: "border-fuchsia-500/30", 
         bg: "bg-fuchsia-900/10",
-        shadow: "shadow-[0_0_10px_rgba(232,121,249,0.1)]"
+        shadow: "shadow-[0_0_15px_rgba(232,121,249,0.15)]",
+        line: "from-fuchsia-500"
       };
-    case "alert": // 🚨 NEW: Security Alerts
+    case "alert": 
     case "danger":
       return { 
         icon: ShieldAlert, 
         color: "text-red-400", 
         border: "border-red-500/40", 
         bg: "bg-red-900/10",
-        shadow: "shadow-[0_0_15px_rgba(248,113,113,0.3)]"
+        shadow: "shadow-[0_0_20px_rgba(248,113,113,0.3)]",
+        line: "from-red-500"
       };
     case "warning":
       return { 
@@ -50,7 +56,8 @@ const getEventStyle = (type) => {
         color: "text-amber-400", 
         border: "border-amber-500/30", 
         bg: "bg-amber-900/10",
-        shadow: "shadow-[0_0_10px_rgba(251,191,36,0.1)]"
+        shadow: "shadow-[0_0_15px_rgba(251,191,36,0.15)]",
+        line: "from-amber-500"
       };
     default:
       return { 
@@ -58,33 +65,43 @@ const getEventStyle = (type) => {
         color: "text-slate-400", 
         border: "border-slate-700", 
         bg: "bg-slate-800/20",
-        shadow: "shadow-none"
+        shadow: "shadow-none",
+        line: "from-slate-500"
       };
   }
 };
 
+/**
+ * 📜 MISSION TIMELINE (DEEP LOG)
+ * Real-time event stream with expandable data payloads.
+ */
 export default function Timeline({ events = [], filter = "all" }) {
   const scrollRef = useRef(null);
+  const [expandedId, setExpandedId] = useState(null);
   
-  // 📊 Auto-scroll to top
+  // 📊 Auto-scroll to top on new event
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0;
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [events]);
+  }, [events.length]); // Only scroll if count changes
 
-  // 🔍 Local Filtering (Optional prop based filtering)
+  // 🔍 Filter Logic
   const filteredEvents = useMemo(() => {
     if (filter === "all") return events;
     return events.filter(e => e.type === filter);
   }, [events, filter]);
 
-  // 📊 Stats Calculation
+  // 📊 Stats
   const stats = useMemo(() => ({
     doses: events.filter(e => e.type === 'dose').length,
     logs: events.filter(e => e.type === 'symptom').length,
     alerts: events.filter(e => e.type === 'alert' || e.type === 'danger').length
   }), [events]);
+
+  const toggleExpand = (id) => {
+    setExpandedId(prev => prev === id ? null : id);
+  };
 
   return (
     <div className="flex flex-col h-full min-h-[420px] rounded-2xl bg-[#050b14]/80 border border-slate-700/50 backdrop-blur-xl overflow-hidden relative shadow-lg">
@@ -122,75 +139,140 @@ export default function Timeline({ events = [], filter = "all" }) {
           </div>
         )}
 
-        {/* The Neon Rail */}
+        {/* The Neon Rail (Circuit Trace) */}
         {filteredEvents.length > 0 && (
-           <div className="absolute left-[23px] top-4 bottom-0 w-[1px] bg-gradient-to-b from-cyan-500/50 via-slate-800 to-transparent" />
+           <div className="absolute left-[23px] top-6 bottom-0 w-[1px] bg-gradient-to-b from-slate-700 via-slate-800 to-transparent" />
         )}
 
-        <AnimatePresence initial={false} mode="popLayout">
-          {filteredEvents.map((event, index) => {
-            const style = getEventStyle(event.type);
-            const Icon = style.icon;
+        <LayoutGroup>
+          <AnimatePresence initial={false} mode="popLayout">
+            {filteredEvents.map((event, index) => {
+              const style = getEventStyle(event.type);
+              const Icon = style.icon;
+              const isLatest = index === 0;
+              const isExpanded = expandedId === event.id;
 
-            return (
-              <motion.div
-                key={event.id || index}
-                layout
-                initial={{ opacity: 0, x: -10, scale: 0.95 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                className="relative pl-10 pb-3 group"
-              >
-                
-                {/* Connector Node */}
-                <div className="absolute left-[16px] top-3.5 z-10">
-                   {/* Outer Glow Ring */}
-                   <div className={`w-4 h-4 rounded-full border bg-[#050b14] flex items-center justify-center transition-colors duration-300 ${style.border}`}>
-                      {/* Inner Dot */}
-                      <div className={`w-1.5 h-1.5 rounded-full ${index === 0 ? "animate-pulse" : ""} ${style.color.replace('text-', 'bg-')}`} />
-                   </div>
-                   {/* Vertical Beam for first item */}
-                   {index === 0 && (
-                      <div className={`absolute -top-4 left-1/2 -translate-x-1/2 w-[1px] h-4 bg-gradient-to-t from-${style.color.split('-')[1]}-500 to-transparent opacity-50`} />
-                   )}
-                </div>
+              return (
+                <motion.div
+                  layout
+                  key={event.id || index}
+                  initial={{ opacity: 0, x: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                  className="relative pl-10 pb-3 group"
+                  data-tour={isLatest ? "timeline-latest" : undefined}
+                >
+                  
+                  {/* Connector Node */}
+                  <div className="absolute left-[16px] top-3.5 z-10">
+                     {/* Outer Glow Ring */}
+                     <div className={`w-4 h-4 rounded-full border bg-[#050b14] flex items-center justify-center transition-colors duration-300 ${style.border} ${isLatest ? style.shadow : ''}`}>
+                        {/* Inner Dot */}
+                        <div className={`w-1.5 h-1.5 rounded-full ${isLatest ? "animate-pulse" : ""} ${style.color.replace('text-', 'bg-')}`} />
+                     </div>
+                     {/* Active Beam Connection */}
+                     {isLatest && (
+                        <div className={`absolute -top-6 left-1/2 -translate-x-1/2 w-[1px] h-6 bg-gradient-to-t ${style.line} to-transparent opacity-80`} />
+                     )}
+                  </div>
 
-                {/* Data Card */}
-                <div className={`
-                  relative p-3 rounded-r-lg rounded-bl-lg border-l-2 backdrop-blur-sm transition-all duration-300
-                  hover:bg-white/5 hover:translate-x-1
-                  ${style.bg} ${style.border} ${style.color.replace('text-', 'border-l-')}
-                `}>
-                  {/* Technical Corner Clip */}
-                  <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-white/10 rounded-tr-sm" />
+                  {/* Data Card */}
+                  <motion.div 
+                    layout
+                    onClick={() => toggleExpand(event.id)}
+                    className={`
+                      relative rounded-r-lg rounded-bl-lg border-l-2 backdrop-blur-sm transition-all duration-300 cursor-pointer
+                      ${isExpanded ? 'bg-slate-900/80 border-l-4' : 'hover:bg-white/5 hover:translate-x-1'}
+                      ${style.bg} ${style.border} ${style.color.replace('text-', 'border-l-')}
+                    `}
+                  >
+                    {/* Technical Corner Clip */}
+                    <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-white/10 rounded-tr-sm" />
 
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <div className={`mt-0.5 opacity-80 ${style.color}`}>
-                         <Icon size={14} />
-                      </div>
-                      
-                      <div className="flex flex-col">
-                        <span className={`text-xs font-bold tracking-wide ${style.color} drop-shadow-sm`}>
-                          {event.label}
-                        </span>
-                        {event.description && (
-                           <span className="text-[10px] text-slate-400 mt-0.5 font-mono leading-tight">
-                             {event.description}
-                           </span>
-                        )}
+                    <div className="p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 w-full">
+                          <div className={`mt-0.5 opacity-80 ${style.color}`}>
+                             <Icon size={14} />
+                          </div>
+                          
+                          <div className="flex flex-col w-full">
+                            <div className="flex justify-between items-center w-full">
+                              <span className={`text-xs font-bold tracking-wide ${style.color} drop-shadow-sm`}>
+                                {event.label}
+                              </span>
+                              <span className="text-[9px] font-mono text-slate-500 opacity-60 whitespace-nowrap ml-2">
+                                {event.time}
+                              </span>
+                            </div>
+                            
+                            {event.description && (
+                               <div className="text-[10px] text-slate-400 mt-0.5 font-mono leading-tight flex items-center gap-2">
+                                 {event.description}
+                                 {isLatest && (
+                                   <span className="bg-white/10 text-white text-[8px] px-1 rounded animate-pulse">NEW</span>
+                                 )}
+                               </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    <span className="text-[9px] font-mono text-slate-500 bg-black/20 px-1.5 py-0.5 rounded border border-white/5 whitespace-nowrap">
-                      {event.time}
-                    </span>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
+                    {/* EXPANDED PAYLOAD (Section C Requirement: Deep Data) */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="border-t border-white/5 bg-black/20 overflow-hidden"
+                        >
+                          <div className="p-3 grid grid-cols-2 gap-2 text-[9px] font-mono">
+                            <div className="flex flex-col">
+                              <span className="text-slate-500 uppercase tracking-widest">ID Hash</span>
+                              <span className="text-slate-300 font-bold">{event.id?.slice(0,8) || "UNKNOWN"}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-slate-500 uppercase tracking-widest">Source</span>
+                              <span className="text-slate-300 font-bold uppercase">{event.source || "System"}</span>
+                            </div>
+                            
+                            {/* Conditional Metadata Display */}
+                            {event.capsuleType && (
+                              <div className="col-span-2 mt-1 pt-1 border-t border-white/5">
+                                <span className="text-cyan-500 uppercase tracking-widest block mb-1">Payload Config</span>
+                                <div className="flex justify-between text-slate-300">
+                                  <span>Type: {event.capsuleType}</span>
+                                  <span>Qty: {event.doseAmount}x</span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {event.severity && (
+                              <div className="col-span-2 mt-1 pt-1 border-t border-white/5">
+                                <span className="text-fuchsia-500 uppercase tracking-widest block mb-1">Bio-Metric Data</span>
+                                <div className="flex justify-between text-slate-300">
+                                  <span>Severity: {event.severity}/10</span>
+                                  <span>Notes: {event.notes ? "Attached" : "None"}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="px-3 pb-2 flex justify-end">
+                             <ChevronDown size={10} className="text-slate-600 rotate-180" />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                  </motion.div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </LayoutGroup>
       </div>
 
       {/* 4. FOOTER STATS DECK */}

@@ -1,16 +1,15 @@
-// src/pages/Profile.jsx
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   Shield, Zap, Activity, Award, Terminal, 
-  LogOut, PlayCircle, Settings, FileText, Pill, ShieldAlert 
+  LogOut, PlayCircle, Settings, FileText, Pill, ShieldAlert, Power 
 } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 
 // --- STORES ---
 import { useAvatarStore } from "../store/avatarStore";
 import { useAuthStore } from "../store/authStore";
-import { useDemoStore } from "../store/demoStore"; // 👈 NEW
+import { useDemoStore } from "../store/demoStore"; 
 import { useTutorialStore } from "../store/tutorialStore";
 import { getStreak } from "../services/localPersistence";
 
@@ -48,15 +47,15 @@ export default function Profile() {
   // Connect to stores
   const { appliedAvatar, loadFromStorage } = useAvatarStore();
   const { user, logout } = useAuthStore();
-  const { events } = useDemoStore(); // Access event history for stats
+  const { events } = useDemoStore(); 
   const { showForUser, openTutorial } = useTutorialStore();
 
   // --- 1. INITIALIZATION ---
   useEffect(() => {
     loadFromStorage();
-    setStreakData(getStreak()); // Load real streak from local DB
+    setStreakData(getStreak()); // Load real streak
 
-    // Trigger Tutorial
+    // Trigger Tutorial if needed
     const t = setTimeout(() => {
       showForUser('profile');
     }, 600);
@@ -64,10 +63,10 @@ export default function Profile() {
   }, [loadFromStorage, showForUser]);
 
   return (
-    <div className="min-h-screen bg-[#050b14] relative overflow-hidden flex flex-col items-center justify-center p-4 sm:p-8 pb-28">
+    <div className="min-h-screen bg-[#050b14] relative overflow-y-auto flex flex-col items-center justify-start p-4 sm:p-8 pt-12 pb-32">
       
       {/* 1. ATMOSPHERE LAYERS */}
-      <div className="absolute inset-0 pointer-events-none">
+      <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute inset-0 hero-grid opacity-20" />
         <div className="absolute inset-0 scanlines opacity-10" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.05),transparent_80%)]" />
@@ -87,9 +86,20 @@ export default function Profile() {
       >
         {/* Card Header Decoration */}
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
-        <div className="absolute top-0 right-0 p-4 opacity-50 text-cyan-500">
-           <Terminal size={16} />
+        
+        {/* Top Left: Terminal Icon Decoration */}
+        <div className="absolute top-0 left-0 p-5 opacity-40 text-cyan-500">
+           <Terminal size={14} />
         </div>
+
+        {/* 👆 FIX: LOGOUT MOVED TO TOP RIGHT (Power Button Style) */}
+        <button
+          onClick={logout}
+          className="absolute top-4 right-4 p-2 rounded-full bg-slate-800/50 border border-slate-700 text-slate-400 hover:text-rose-400 hover:border-rose-500/50 hover:bg-rose-500/10 transition-all group z-20"
+          title="End Session"
+        >
+          <Power size={18} className="group-hover:drop-shadow-[0_0_8px_rgba(244,63,94,0.5)] transition-all" />
+        </button>
 
         <div className="p-8 flex flex-col items-center text-center space-y-8">
           
@@ -147,7 +157,7 @@ export default function Profile() {
             <StatBox 
               icon={Activity} 
               label="Missions" 
-              value={events.length} 
+              value={events?.length || 0} 
               color="text-cyan-400" 
               glow="shadow-cyan-500/20" 
             />
@@ -182,18 +192,14 @@ export default function Profile() {
             </div>
           </motion.div>
 
-          {/* E. SYSTEM ACTIONS (Footer) */}
+          {/* E. FOOTER INFO (Logout removed from here) */}
           <motion.div 
             variants={itemVariants}
-            className="w-full pt-4 border-t border-white/5 flex justify-center"
+            className="w-full pt-4 flex justify-center opacity-40"
           >
-            <button 
-              onClick={logout}
-              className="flex items-center justify-center gap-2 py-2 px-6 rounded-lg bg-slate-800/50 hover:bg-red-900/20 border border-slate-700 hover:border-red-500/30 transition-all text-[10px] text-slate-400 hover:text-red-400 font-bold uppercase tracking-wider group"
-            >
-              <LogOut size={14} className="group-hover:-translate-x-1 transition-transform" /> 
-              End Session
-            </button>
+            <p className="text-[9px] font-mono text-slate-500 uppercase tracking-widest">
+              ID: {user?.id || "UNREGISTERED"} • V5.0.2
+            </p>
           </motion.div>
 
         </div>
@@ -233,7 +239,7 @@ const StatBox = ({ icon: Icon, label, value, color, glow }) => (
 const TutorialButton = ({ label, onClick, icon: Icon = PlayCircle }) => (
   <button 
     onClick={onClick}
-    className="flex items-center gap-2 px-3 py-2 rounded bg-slate-900/50 border border-slate-800 hover:border-cyan-500/30 hover:bg-slate-800 transition-all text-[10px] text-slate-400 hover:text-cyan-400 font-bold uppercase tracking-wide text-left"
+    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900/50 border border-slate-800 hover:border-cyan-500/30 hover:bg-slate-800 transition-all text-[10px] text-slate-400 hover:text-cyan-400 font-bold uppercase tracking-wide text-left"
   >
     <Icon size={12} className="shrink-0" />
     <span className="truncate">{label}</span>

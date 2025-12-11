@@ -1,19 +1,20 @@
 // src/pages/LogPage.jsx
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Activity, ClipboardPlus, Stethoscope, FileText, Database } from "lucide-react";
+import { Activity, ClipboardPlus, Stethoscope, FileText, Database, HeartPulse } from "lucide-react";
 import { Toaster } from "react-hot-toast";
+import { useShallow } from "zustand/react/shallow";
 
 // --- STORES ---
 import { useDemoStore } from "../store/demoStore";
 import { useAuthStore } from "../store/authStore";
-import { useTutorialStore } from "../store/tutorialStore"; // 👈 NEW
+import { useTutorialStore } from "../store/tutorialStore"; 
 
 // --- COMPONENTS ---
 import BioScanForm from "../components/log/BioScanForm";
 import DiagnosticsPanel from "../components/log/DiagnosticsPanel";
 import AssistantBubble from "../components/ranger/AssistantBubble";
-import TutorialOverlay from "../components/tutorial/TutorialOverlay"; // 👈 NEW
+import TutorialOverlay from "../components/tutorial/TutorialOverlay"; 
 import ConfettiListener from "../components/global/Confetti";
 
 // --- ANIMATION VARIANTS ---
@@ -35,38 +36,53 @@ const panelVariants = {
 /**
  * 📝 LOG PAGE (BIO-DIAGNOSTICS)
  * Interface for logging symptoms, viewing biological trends, and receiving AI triage.
+ * * INTEGRATION NOTE:
+ * Reads directly from 'symptomHistory' in the store for O(1) data access.
  */
 export default function LogPage() {
   const { user } = useAuthStore();
-  const { events, demoMode } = useDemoStore();
   const showTutorial = useTutorialStore((s) => s.showForUser);
   
-  // Compute recent symptom context for the assistant
+  // Section C: Optimized Selector
+  const { symptomHistory, demoMode } = useDemoStore(
+    useShallow(s => ({
+      symptomHistory: s.symptomHistory,
+      demoMode: s.demoMode
+    }))
+  );
+  
   const [assistantMessage, setAssistantMessage] = useState("Diagnostics Module Initialized. Awaiting Input.");
 
   // --- 1. TUTORIAL TRIGGER ---
   useEffect(() => {
-    // Delay ensures smooth entry before overlay appears
     const t = setTimeout(() => {
       showTutorial('log', { mode: demoMode ? 'always' : 'once' });
     }, 600);
     return () => clearTimeout(t);
   }, [demoMode, showTutorial]);
 
-  // --- 2. ASSISTANT LOGIC ---
+  // --- 2. INTELLIGENT ASSISTANT LOGIC ---
   useEffect(() => {
-    // Check the most recent symptom logged to give feedback
-    const lastSymptom = events.find(e => e.type === 'symptom');
-    if (lastSymptom) {
-      if (lastSymptom.severity > 7) {
-        setAssistantMessage(`CRITICAL ALERT: ${lastSymptom.symptom} detected at high severity. Rest protocols advised immediately.`);
-      } else if (lastSymptom.severity > 4) {
-        setAssistantMessage(`Analysis: ${lastSymptom.symptom} recorded. Monitor vitals for escalation.`);
+    // Analyze the last 3 logs for a trend pattern
+    if (symptomHistory.length > 0) {
+      const latest = symptomHistory[0];
+      const previous = symptomHistory[1];
+
+      if (latest.severity >= 8) {
+        setAssistantMessage(`CRITICAL ALERT: ${latest.severity}/10 ${latest.text || "Anomaly"} detected. Immediate cessation of activity advised.`);
+      } else if (latest.severity >= 5) {
+        if (previous && latest.severity > previous.severity) {
+          setAssistantMessage(`TREND WARNING: Symptoms escalating (+${latest.severity - previous.severity}). Review countermeasures.`);
+        } else {
+          setAssistantMessage(`Analysis: Moderate anomaly (${latest.text}). Monitor vitals for escalation.`);
+        }
       } else {
-        setAssistantMessage("Minor anomaly logged. Systems nominal.");
+        setAssistantMessage("Minor anomaly logged. Systems remaining within operational tolerances.");
       }
+    } else {
+      setAssistantMessage("No recent anomalies. Bio-readings nominal.");
     }
-  }, [events]);
+  }, [symptomHistory]);
 
   return (
     <div className="min-h-screen bg-[#050b14] relative overflow-hidden flex flex-col p-4 md:p-6 lg:p-8">
@@ -81,7 +97,7 @@ export default function LogPage() {
 
       {/* Global Overlays */}
       <ConfettiListener />
-      <TutorialOverlay /> {/* 👈 Tutorial Layer */}
+      <TutorialOverlay /> 
       <Toaster position="top-right" />
 
       {/* 2. MAIN CONTENT GRID */}
@@ -114,9 +130,10 @@ export default function LogPage() {
           {/* Quick Stat */}
           <div className="flex items-center gap-3 px-4 py-2 rounded-lg bg-black/40 border border-slate-700/50 backdrop-blur-md">
             <div className="flex flex-col items-end">
-              <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Health Status</span>
-              <span className="text-xl font-mono font-bold text-cyan-400 leading-none">
-                OPTIMAL
+              <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Bio-Rhythm</span>
+              <span className="text-xl font-mono font-bold text-cyan-400 leading-none flex items-center gap-2">
+                <HeartPulse size={16} className="animate-pulse text-emerald-500" />
+                ONLINE
               </span>
             </div>
             <Activity size={28} className="text-cyan-500 opacity-80" />
@@ -133,13 +150,13 @@ export default function LogPage() {
             className="lg:col-span-5 flex flex-col gap-6"
           >
             <div 
-              data-tour="log-severity" // 👈 Tutorial Target (Scanning Interface)
+              data-tour="log-severity" // 👈 Tutorial Target
               className="bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl rounded-2xl p-1 relative overflow-hidden shadow-2xl"
             >
                {/* Decorative Header Bar */}
                <div className="h-1 w-full bg-gradient-to-r from-emerald-500/50 via-cyan-500/50 to-transparent absolute top-0 left-0" />
                
-               {/* Reused Form Component from Dashboard */}
+               {/* BioScanForm handles the input and store mutation internally */}
                <BioScanForm />
             </div>
 
@@ -156,7 +173,7 @@ export default function LogPage() {
             className="lg:col-span-7 flex flex-col h-full min-h-[500px]"
           >
             <div 
-              data-tour="log-diagnostics" // 👈 Tutorial Target (Analysis Panel)
+              data-tour="log-diagnostics" // 👈 Tutorial Target
               className="flex-1 bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl rounded-2xl overflow-hidden relative shadow-lg flex flex-col"
             >
               
@@ -167,7 +184,9 @@ export default function LogPage() {
                 </div>
                 <div className="flex items-center gap-2 px-2 py-1 rounded bg-black/40 border border-white/10">
                   <FileText size={12} className="text-emerald-400" />
-                  <span className="text-[10px] font-mono text-slate-400">HISTORY</span>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    LOGS: {symptomHistory.length}
+                  </span>
                 </div>
               </div>
 

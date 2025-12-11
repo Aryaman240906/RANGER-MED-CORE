@@ -1,206 +1,217 @@
-// src/pages/Landing.jsx
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Activity, Shield, Zap, ChevronRight, Terminal } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  ChevronRight, Play, Activity, Users, Zap, Globe, Shield 
+} from "lucide-react";
 
-// Components
+// --- COMPONENTS ---
 import IntroAnimation from "../components/global/IntroAnimation";
 import Logo from "../components/global/Logo";
+import DemoControl from "../components/landing/HeroAnimation"; // 👈 Visualization
+import RoleExplanationModal from "../components/landing/RoleExplanationModal";
+import StartTutorialModal from "../components/landing/StartTutorialModal";
 
-export default function Landing() {
-  const [introDone, setIntroDone] = useState(false);
+// --- STORE ---
+import { useTutorialStore } from "../store/tutorialStore";
+import { useDemoStore } from "../store/demoStore";
+
+export default function LandingPage() {
   const navigate = useNavigate();
+  
+  // State
+  const [introDone, setIntroDone] = useState(false);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [showTutorialModal, setShowTutorialModal] = useState(false);
+
+  // Store Hooks
+  const { startSimulation } = useDemoStore();
+  const { openTutorial } = useTutorialStore();
+
+  // --- ACTIONS ---
+  const handleStartDemo = () => {
+    startSimulation(); 
+    navigate("/demo");
+  };
+
+  const handleStartTutorial = () => {
+    setShowTutorialModal(true);
+  };
+
+  // Animation Variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { staggerChildren: 0.1, delayChildren: 0.3 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { duration: 0.6, ease: "easeOut" }
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#050b14] text-white relative overflow-hidden flex flex-col selection:bg-cyan-500/30">
+    <div className="min-h-screen relative flex flex-col selection:bg-cyan-500/30 overflow-hidden">
       
-      {/* 1. Intro Sequence */}
+      {/* 1. INTRO SEQUENCE */}
       {!introDone && <IntroAnimation onComplete={() => setIntroDone(true)} />}
 
-      {/* 2. Environmental Effects */}
+      {/* 2. PAGE-SPECIFIC LIGHTING */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* Tactical Grid */}
-        <div className="absolute inset-0 hero-grid opacity-30" />
-        {/* CRT Scanlines */}
-        <div className="absolute inset-0 scanlines opacity-10" />
-        {/* Vignette */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#050b14_90%)]" />
-        {/* Top Glow Spot */}
-        <div className="absolute top-[-20%] left-[20%] w-[600px] h-[600px] bg-cyan-500/10 blur-[100px] rounded-full" />
+        {/* Hero Spotlight */}
+        <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-cyan-500/10 blur-[120px] rounded-full opacity-60" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-500/5 blur-[100px] rounded-full" />
       </div>
 
-      {/* 3. Glass Header */}
+      {/* 3. GLASS HEADER */}
       <header className="relative z-20 w-full px-6 py-6 max-w-7xl mx-auto flex items-center justify-between">
         <Logo className="w-auto h-10" subtitle />
         
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate("/login")}
-            className="hidden md:flex items-center gap-2 px-4 py-2 text-xs font-mono text-cyan-400 hover:text-white transition-colors"
+            className="hidden md:flex items-center gap-2 px-4 py-2 text-xs font-mono text-cyan-400/80 hover:text-cyan-300 transition-colors uppercase tracking-widest group"
           >
-            [ LOGIN_ACCESS ]
+            <Shield size={12} className="group-hover:text-cyan-400 transition-colors" />
+            [ SECURE_LOGIN ]
           </button>
+          
           <button
             onClick={() => navigate("/register")}
-            className="group relative px-5 py-2 overflow-hidden rounded-md bg-cyan-900/20 border border-cyan-500/30 hover:border-cyan-400/80 transition-all duration-300"
+            className="group relative px-6 py-2.5 overflow-hidden rounded-lg bg-cyan-900/20 border border-cyan-500/30 hover:border-cyan-400/80 transition-all duration-300 shadow-lg shadow-cyan-900/10"
           >
             <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] bg-gradient-to-r from-transparent via-cyan-400/20 to-transparent transition-transform duration-700" />
-            <span className="relative text-xs font-bold tracking-widest text-cyan-100 group-hover:text-white uppercase">
-              Initialize
+            <span className="relative text-xs font-bold tracking-[0.2em] text-cyan-100 group-hover:text-white uppercase flex items-center gap-2">
+              Initialize <ChevronRight size={12} />
             </span>
           </button>
         </div>
       </header>
 
-      {/* 4. Main Hero Section */}
-      <main className="relative z-10 flex-grow flex flex-col justify-center max-w-7xl mx-auto px-6 py-12 w-full">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
+      {/* 4. MAIN HERO SECTION */}
+      <main className="relative z-10 flex-grow flex flex-col justify-center items-center max-w-7xl mx-auto px-4 py-12 w-full">
+        
+        <div className="grid lg:grid-cols-2 gap-12 items-center w-full">
           
-          {/* Left Column: Copy */}
-          <div className="space-y-8">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.5, duration: 0.8 }}
-            >
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-[10px] font-mono tracking-widest text-cyan-300 mb-6">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                SYSTEM ONLINE v5.0
+          {/* LEFT: MISSION BRIEFING */}
+          <motion.div 
+            className="space-y-8 text-center lg:text-left order-2 lg:order-1"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            <motion.div variants={itemVariants}>
+              {/* STATUS PILL (Now holds the Tech Stack Name) */}
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-[10px] font-mono tracking-widest text-cyan-400 mb-6 backdrop-blur-md shadow-[0_0_15px_rgba(34,211,238,0.1)]">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_#22d3ee]" />
+                BIO-SYNC NEURAL GRID: ONLINE v5.0
               </div>
               
-              <h1 className="text-5xl md:text-7xl font-black leading-[0.9] tracking-tight text-white mb-6">
-                MISSION <br />
+              {/* MAIN TITLE (Brand Name) */}
+              <h1 className="text-5xl md:text-7xl font-black leading-[0.95] tracking-tight text-white mb-6 drop-shadow-2xl uppercase">
+                RANGER <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 neon-text">
-                  CRITICAL
+                  MED-CORE
                 </span>
               </h1>
               
-              <p className="text-lg text-slate-400 max-w-lg leading-relaxed border-l-2 border-cyan-500/30 pl-6">
-                Ranger Med-Core is a high-fidelity command center for predicting stability, 
-                tracking medication, and accelerating triage.
-                <br />
-                <span className="text-cyan-400 text-sm font-mono mt-2 block opacity-80">// DEPLOYMENT READY</span>
+              {/* SUBTITLE */}
+              <p className="text-lg text-slate-400 max-w-lg mx-auto lg:mx-0 leading-relaxed font-light">
+                Advanced tactical health monitoring system. <br/>
+                <span className="text-cyan-200/80 font-medium">Optimize readiness</span> and transform biometric data into actionable insights in real-time.
               </p>
             </motion.div>
 
+            {/* ACTION DECK */}
             <motion.div 
-              className="flex flex-wrap gap-4"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
+              className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
+              variants={itemVariants}
             >
-              <Link 
-                to="/demo" 
-                className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 bg-cyan-600 font-lg rounded-sm hover:bg-cyan-500 hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] focus:outline-none ring-offset-2 focus:ring-2 ring-cyan-400"
+              <button 
+                onClick={handleStartTutorial}
+                className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-black transition-all duration-300 bg-cyan-500 rounded-lg hover:bg-cyan-400 hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] ring-offset-2 focus:ring-2 ring-cyan-400"
               >
-                <span>LAUNCH_DEMO</span>
-                <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Link>
+                <Play size={18} className="mr-2 fill-current" />
+                <span>START TUTORIAL</span>
+              </button>
               
               <button 
-                onClick={() => navigate("/login")}
-                className="px-8 py-4 font-bold text-cyan-200 border border-cyan-500/30 rounded-sm hover:bg-cyan-950/50 hover:border-cyan-400 transition-all backdrop-blur-sm"
+                onClick={handleStartDemo}
+                className="px-8 py-4 font-bold text-cyan-300 border border-cyan-500/30 bg-cyan-950/20 rounded-lg hover:bg-cyan-900/40 hover:border-cyan-400 transition-all backdrop-blur-sm flex items-center justify-center gap-2 group"
               >
-                AUTHENTICATE
+                <Activity size={18} className="group-hover:scale-110 transition-transform" />
+                <span>RUN SIMULATION</span>
               </button>
             </motion.div>
-          </div>
 
-          {/* Right Column: Holographic HUD */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.8, duration: 0.8 }}
-            className="hidden lg:block relative"
-          >
-            {/* The Main Card */}
-            <div className="relative z-10 w-full max-w-md mx-auto aspect-square bg-[#08101f]/80 backdrop-blur-md border border-cyan-500/20 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.5)] group hover:border-cyan-500/40 transition-colors duration-500">
-              {/* Card Header */}
-              <div className="h-12 border-b border-cyan-500/20 bg-cyan-950/30 flex items-center justify-between px-4">
-                 <div className="flex gap-2">
-                   <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50" />
-                   <div className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50" />
-                   <div className="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/50" />
-                 </div>
-                 <span className="text-[10px] font-mono text-cyan-500/60">MED-CORE TERMINAL</span>
-              </div>
-
-              {/* Card Body (Simulated Dashboard) */}
-              <div className="p-6 space-y-6">
-                {/* 1. Status Row */}
-                <div className="flex items-center justify-between pb-4 border-b border-cyan-500/10">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">
-                      <Activity size={20} />
-                    </div>
-                    <div>
-                      <div className="text-xs text-slate-400">System Status</div>
-                      <div className="text-sm font-bold text-white">OPTIMAL</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-slate-400">Uptime</div>
-                    <div className="text-sm font-mono text-cyan-300">99.9%</div>
-                  </div>
-                </div>
-
-                {/* 2. Grid Metric */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs text-slate-400">
-                    <span>Bio-Grid Load</span>
-                    <span>78%</span>
-                  </div>
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full w-[78%] bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.5)]" />
-                  </div>
-                </div>
-
-                 {/* 3. Action Buttons Mockup */}
-                 <div className="grid grid-cols-2 gap-3">
-                   <div className="p-3 bg-cyan-500/5 border border-cyan-500/20 rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-cyan-500/10 transition-colors cursor-default">
-                      <Shield size={18} className="text-cyan-400" />
-                      <span className="text-[10px] font-bold text-cyan-200">DEFENSE</span>
-                   </div>
-                   <div className="p-3 bg-cyan-500/5 border border-cyan-500/20 rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-cyan-500/10 transition-colors cursor-default">
-                      <Zap size={18} className="text-yellow-400" />
-                      <span className="text-[10px] font-bold text-cyan-200">ENERGY</span>
-                   </div>
-                 </div>
-
-                 {/* 4. Terminal Output */}
-                 <div className="mt-2 p-3 bg-black/40 rounded-md border border-cyan-500/10 font-mono text-[10px] text-cyan-600/80 leading-relaxed overflow-hidden">
-                    <p>&gt; Connecting to secure server...</p>
-                    <p>&gt; Handshake established.</p>
-                    <p className="animate-pulse">&gt; Awaiting user input_</p>
-                 </div>
-              </div>
-            </div>
-
-            {/* Floating Decorative Elements behind card */}
-            <div className="absolute -top-10 -right-10 w-32 h-32 border border-cyan-500/20 rounded-full border-dashed animate-spin-slow opacity-30" />
-            <div className="absolute -bottom-5 -left-5 w-24 h-24 border border-blue-500/20 rounded-full animate-reverse-spin opacity-30" />
+            {/* Role Explainer Trigger */}
+            <motion.div variants={itemVariants}>
+              <button 
+                onClick={() => setShowRoleModal(true)}
+                className="mt-4 text-xs text-slate-500 hover:text-cyan-400 transition-colors flex items-center gap-2 mx-auto lg:mx-0 group"
+              >
+                <Users size={14} className="group-hover:scale-110 transition-transform" />
+                <span>What are Ranger / Doctor roles?</span>
+              </button>
+            </motion.div>
           </motion.div>
+
+          {/* RIGHT: HOLOGRAM EMITTER */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4, duration: 1, type: "spring", bounce: 0.4 }}
+            className="order-1 lg:order-2 flex justify-center relative"
+          >
+             {/* Hero Animation Component */}
+             <div className="relative w-full max-w-[500px] aspect-square">
+               <DemoControl />
+             </div>
+          </motion.div>
+
         </div>
       </main>
 
-      {/* 5. Footer Telemetry Bar */}
-      <footer className="relative z-20 w-full bg-[#02040a] border-t border-cyan-500/20">
-        <div className="max-w-7xl mx-auto px-6 py-2 flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-cyan-600/60">
+      {/* 5. FOOTER TELEMETRY */}
+      <footer className="relative z-20 w-full border-t border-white/5 bg-[#02040a]/80 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex flex-col sm:flex-row items-center justify-between text-[10px] font-mono uppercase tracking-wider text-slate-500">
            <div className="flex gap-4">
-             <span className="flex items-center gap-1">
-               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-               SERVER: US-EAST-1
+             <span className="flex items-center gap-1.5">
+               <Globe size={12} className="text-cyan-600 animate-pulse" />
+               SECURE CONNECTION
              </span>
-             <span className="hidden sm:inline">LATENCY: 12ms</span>
+             <span>LATENCY: 12ms</span>
            </div>
            
-           <div className="flex items-center gap-2">
-             <Terminal size={10} />
-             <span className="animate-pulse">DECRYPTING DATA STREAM...</span>
+           <div className="flex items-center gap-2 mt-2 sm:mt-0">
+             <span>Powered by Bio-Sync Neural Grid</span>
+             <Zap size={10} className="text-yellow-500" />
            </div>
         </div>
       </footer>
+
+      {/* --- MODALS --- */}
+      <AnimatePresence>
+        {showRoleModal && (
+          <RoleExplanationModal 
+            isOpen={showRoleModal} 
+            onClose={() => setShowRoleModal(false)} 
+          />
+        )}
+        {showTutorialModal && (
+          <StartTutorialModal 
+            isOpen={showTutorialModal} 
+            onClose={() => setShowTutorialModal(false)} 
+          />
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

@@ -1,9 +1,10 @@
 // src/store/demoStore.js
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { generateTickUpdate } from "../services/demoEngine";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { generateTickUpdate, seedEngine } from "../services/demoEngine";
+import { saveDemoConfig } from "../services/demoPersistence";
 
-// 🆔 ID Generator (Safe Fallback)
+// --- 🆔 ID GENERATOR (Browser Native) ---
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -11,149 +12,185 @@ const generateId = () => {
   return `evt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
-// 🛡️ SYSTEM DEFAULTS (Factory Reset State)
+// --- ⚙️ PHYSICS ENGINE (METRICS CALCULATOR) ---
+/**
+ * Pure function that calculates RPG stats based on history.
+ * Ensures data consistency across all pages.
+ */
+const computeMetrics = (doseHistory, symptomHistory, currentStability) => {
+  const now = Date.now();
+  const ONE_DAY = 24 * 60 * 60 * 1000;
+
+  // 1. Calculate Dose Bonuses (Last 24h)
+  const recentDoses = doseHistory.filter(d => (now - new Date(d.timestamp).getTime()) < ONE_DAY);
+  const doseBonus = recentDoses.reduce((acc, d) => acc + (d.metadata?.stabilityBoost || 5), 0);
+
+  // 2. Calculate Symptom Penalties (Decaying over 24h)
+  const symptomPenalty = symptomHistory.reduce((acc, s) => {
+    const age = now - new Date(s.timestamp).getTime();
+    if (age > ONE_DAY) return acc;
+    const severity = s.severity || 1;
+    const timeDecay = Math.max(0.1, 1 - (age / ONE_DAY)); // Newer = more impact
+    return acc + (severity * 4 * timeDecay);
+  }, 0);
+
+  // 3. Compute Stability (Clamped 0-100)
+  let newStability = currentStability + (doseBonus * 0.1) - (symptomPenalty * 0.05);
+  newStability = Math.max(10, Math.min(100, Math.round(newStability)));
+
+  // 4. Compute Readiness (Derived from Stability + Streak)
+  let readiness = Math.round(newStability * 0.9 + (recentDoses.length * 2));
+  readiness = Math.max(5, Math.min(100, readiness));
+
+  // 5. Compute Risk Score (Inverse of Stability + Severity Spikes)
+  let riskScore = 100 - newStability;
+  if (symptomPenalty > 25) riskScore += 15; 
+  riskScore = Math.max(0, Math.min(100, Math.round(riskScore)));
+
+  // 6. Confidence (Data density)
+  const dataPoints = recentDoses.length + symptomHistory.length;
+  const confidence = Math.min(99, 60 + (dataPoints * 5));
+
+  return { stability: newStability, readiness, riskScore, confidence };
+};
+
+// 🛡️ INITIAL STATE
 const INITIAL_STATE = {
-  // Telemetry
+  // Computed Metrics
   stability: 76,
   readiness: 88,
-  trend: "Stable",
+  riskScore: 24,
   confidence: 78,
-  riskScore: 42,
+  trend: "Stable",
   
-  // Tactical Data
-  events: [],
-  alerts: [],
-  doseStreak: 3, // Start with a small streak for motivation
+  // Raw Data Containers (The Source of Truth)
+  doseHistory: [],
+  symptomHistory: [],
+  events: [],     // Visual Timeline
+  alerts: [],     // Active Mission Alerts
+  doseStreak: 3,
   
   // UX State
   assistantMessage: "System initialized. Monitoring neural link.",
   systemStatus: "ONLINE",
+  
+  // Simulation State
+  demoMode: false,
+  running: false,
+  speed: 1, 
+  scenario: "normal",
+  seed: 123456789,
+  _interval: null,
 };
 
-// ⚙️ PHYSICS CONSTANTS (Deterministic Rules)
+// 💊 DOSE CONFIG
 const DOSE_EFFECTS = {
   standard: { stability: 6, readiness: 3 },
   booster: { stability: 12, readiness: 8 },
   emergency: { stability: 25, readiness: 15 }
 };
 
-const SYMPTOM_IMPACT = {
-  low: { stability: -3, readiness: -2 },    // Severity 1-3
-  med: { stability: -8, readiness: -5 },    // Severity 4-6
-  high: { stability: -18, readiness: -12 }  // Severity 7-10
-};
-
-/**
- * 🧠 CENTRAL NERVOUS SYSTEM (STORE)
- * Manages both the simulation engine AND the user's tactical actions.
- * Acts as the "Single Source of Truth" for the entire dashboard.
- */
 export const useDemoStore = create(
   persist(
     (set, get) => ({
-      
-      // =========================================
-      // 🌌 SIMULATION ENGINE STATE
-      // =========================================
-      demoMode: false,
-      running: false,
-      speed: 1, 
-      scenario: "normal",
-      _interval: null,
-
-      // =========================================
-      // 📊 TELEMETRY DATA STREAMS
-      // =========================================
       ...INITIAL_STATE,
 
-      // --- COMPUTED SELECTORS (Helpers) ---
-      // Used by BottomNav badges and Header alerts
+      // --- 🧠 COMPUTED SELECTORS ---
       get alertsUnacknowledged() {
         return get().alerts.filter(a => a.status === 'active').length;
       },
 
       // =========================================
-      // 💊 TACTICAL MODULE: DOSE
+      // 💊 ACTION: TAKE DOSE
       // =========================================
       addDose: (payload) => set((state) => {
         const effect = DOSE_EFFECTS[payload.capsuleType] || DOSE_EFFECTS.standard;
         
-        // 1. Calculate new vitals (Clamped 0-100)
-        const newStability = Math.min(100, state.stability + effect.stability);
-        const newReadiness = Math.min(100, state.readiness + effect.readiness);
+        const newDose = {
+          id: generateId(),
+          timestamp: new Date().toISOString(),
+          capsuleType: payload.capsuleType,
+          amount: payload.doseAmount,
+          metadata: { stabilityBoost: effect.stability }
+        };
 
-        // 2. Create Timeline Event
         const event = {
           id: generateId(),
           type: "dose",
           label: `INTAKE: ${payload.capsuleType.toUpperCase()}`,
-          description: `Stability +${effect.stability}%`,
+          description: `Stability +${effect.stability}% | Readiness +${effect.readiness}%`,
           time: new Date().toLocaleTimeString(),
           timestamp: new Date().toISOString(),
           ...payload
         };
 
+        const nextDoseHistory = [newDose, ...state.doseHistory];
+        const immediateStability = Math.min(100, state.stability + effect.stability);
+        const metrics = computeMetrics(nextDoseHistory, state.symptomHistory, immediateStability);
+
         return {
-          stability: newStability,
-          readiness: newReadiness,
+          ...metrics,
           doseStreak: state.doseStreak + 1,
-          events: [event, ...state.events].slice(0, 50), // Keep last 50
+          doseHistory: nextDoseHistory,
+          events: [event, ...state.events].slice(0, 100),
           assistantMessage: "Capsule metabolized. Neural alignment stabilizing."
         };
       }),
 
       // =========================================
-      // 🧬 TACTICAL MODULE: LOGS
+      // 🧬 ACTION: LOG SYMPTOM
       // =========================================
       addSymptom: (payload) => set((state) => {
-        const severity = payload.severity;
-        const impact = severity >= 7 ? SYMPTOM_IMPACT.high 
-                     : severity >= 4 ? SYMPTOM_IMPACT.med 
-                     : SYMPTOM_IMPACT.low;
+        const newSymptom = {
+          id: generateId(),
+          timestamp: new Date().toISOString(),
+          symptom: payload.symptom,
+          severity: payload.severity,
+          notes: payload.notes
+        };
 
-        // 1. Apply Damage (Clamped 0-100)
-        const newStability = Math.max(0, state.stability + impact.stability);
-        const newReadiness = Math.max(0, state.readiness + impact.readiness);
-
-        // 2. Create Timeline Event
         const event = {
           id: generateId(),
           type: "symptom",
           label: `ANOMALY: ${payload.symptom.toUpperCase()}`,
-          description: `Severity ${severity}/10 detected`,
+          description: `Severity ${payload.severity}/10 detected`,
           time: new Date().toLocaleTimeString(),
           timestamp: new Date().toISOString(),
           ...payload
         };
 
-        // 3. Trigger Alert if Critical (Auto-Escalation Logic)
-        let newAlerts = state.alerts;
-        if (severity >= 7) {
+        let nextAlerts = state.alerts;
+        if (payload.severity >= 7) {
           const alert = {
             id: generateId(),
             title: "CRITICAL BIO-SPIKE",
-            message: `${payload.symptom} detected at critical levels. Immediate rest protocol advised.`,
+            message: `${payload.symptom} spikes exceeding safety thresholds. Immediate rest advised.`,
             severity: "critical",
             status: "active",
             time: new Date().toISOString(),
-            rangerId: "RNG-01"
+            rangerId: "USER-01"
           };
-          newAlerts = [alert, ...state.alerts];
+          nextAlerts = [alert, ...state.alerts];
         }
 
+        const nextSymptomHistory = [newSymptom, ...state.symptomHistory];
+        const dropAmount = payload.severity * 2; 
+        const immediateStability = Math.max(0, state.stability - dropAmount);
+        const metrics = computeMetrics(state.doseHistory, nextSymptomHistory, immediateStability);
+
         return {
-          stability: newStability,
-          readiness: newReadiness,
-          events: [event, ...state.events].slice(0, 50),
-          alerts: newAlerts,
-          assistantMessage: severity > 6 
+          ...metrics,
+          symptomHistory: nextSymptomHistory,
+          events: [event, ...state.events].slice(0, 100),
+          alerts: nextAlerts,
+          assistantMessage: payload.severity > 6 
             ? "WARNING: High stress detected. Counter-measures required." 
             : "Symptom logged. Adjusting predictive models."
         };
       }),
 
       // =========================================
-      // 🚨 TACTICAL MODULE: ALERTS
+      // 🚨 ACTION: ALERTS MANAGEMENT
       // =========================================
       addAlert: (alert) => set((state) => ({
         alerts: [{ ...alert, id: generateId(), status: "active", time: new Date().toISOString() }, ...state.alerts]
@@ -172,81 +209,124 @@ export const useDemoStore = create(
       })),
 
       // =========================================
-      // 🕹️ ENGINE CONTROL ACTIONS
+      // 🕹️ SIMULATION ENGINE (The Heartbeat)
       // =========================================
+      
       toggleDemoMode: () => {
         const { demoMode, stopSimulation, resetSimulation } = get();
         if (demoMode) {
           stopSimulation();
-          resetSimulation();
         }
         set({ demoMode: !demoMode });
+        
+        // Sync to persistence
+        saveDemoConfig({ isRunning: !demoMode });
       },
 
       startSimulation: () => {
-        const { _interval, speed } = get();
+        const { _interval, speed, seed } = get();
         if (_interval) clearInterval(_interval);
+
+        // Ensure engine is seeded
+        seedEngine(seed);
 
         const tickRate = 1000 / (speed || 1);
 
-        // The Heartbeat of the App
         const interval = setInterval(() => {
           const currentState = get();
-          // Ask the engine for the next frame based on physics
-          const update = generateTickUpdate(currentState);
-          set(update); 
+          
+          // 1. Get deterministic update from Engine Service
+          const tickUpdate = generateTickUpdate(currentState);
+          
+          // 2. Merge with physics constraints
+          set((state) => {
+            const nextStability = Math.max(0, Math.min(100, tickUpdate.stability));
+            const derived = computeMetrics(state.doseHistory, state.symptomHistory, nextStability);
+            
+            return {
+              ...tickUpdate,
+              ...derived
+            };
+          });
+
         }, tickRate);
 
         set({ running: true, _interval: interval });
+        saveDemoConfig({ isRunning: true });
       },
 
       pauseSimulation: () => {
         const { _interval } = get();
         if (_interval) clearInterval(_interval);
         set({ running: false, _interval: null });
+        saveDemoConfig({ isRunning: false });
       },
 
       stopSimulation: () => get().pauseSimulation(),
 
       resetSimulation: () => {
         get().pauseSimulation();
-        set({ ...INITIAL_STATE });
+        
+        // Re-seed engine
+        const newSeed = Date.now();
+        seedEngine(newSeed);
+        
+        set({ 
+          ...INITIAL_STATE,
+          seed: newSeed,
+          doseHistory: [],
+          symptomHistory: []
+        });
       },
 
-      setScenario: (newScenario) => set({ scenario: newScenario }),
+      setScenario: (newScenario) => {
+        set({ scenario: newScenario });
+        saveDemoConfig({ scenario: newScenario });
+      },
 
       setSpeed: (newSpeed) => {
         const { running, startSimulation, pauseSimulation } = get();
         set({ speed: newSpeed });
+        saveDemoConfig({ speed: newSpeed });
+        
         if (running) {
-          pauseSimulation(); // restart timer with new speed
+          pauseSimulation();
           startSimulation();
         }
       },
 
       // --- UTILS ---
-      
-      // Generic event pusher (for system logs)
       addEvent: (event) => set((state) => ({ 
-        events: [{ ...event, id: generateId(), _receivedAt: Date.now() }, ...state.events].slice(0, 50) 
+        events: [{ ...event, id: generateId(), _receivedAt: Date.now() }, ...state.events].slice(0, 100) 
       })),
 
       setAssistantMessage: (msg) => set({ assistantMessage: msg }),
 
+      exportSnapshot: () => {
+        const state = get();
+        const snapshot = {
+          metrics: { stability: state.stability, readiness: state.readiness, risk: state.riskScore },
+          history: { doses: state.doseHistory, symptoms: state.symptomHistory },
+          config: { seed: state.seed, scenario: state.scenario, speed: state.speed }
+        };
+        return JSON.stringify(snapshot, null, 2);
+      }
     }),
     {
-      name: "ranger-core-storage", 
+      name: "ranger-core-storage",
+      storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ 
-        // PERSISTENCE WHITELIST
         demoMode: state.demoMode,
         scenario: state.scenario,
         speed: state.speed,
+        seed: state.seed,
         doseStreak: state.doseStreak,
         events: state.events,
         alerts: state.alerts,
-        // We persist stability/readiness so refresh doesn't jar the user
         stability: state.stability, 
-        readiness: state.readiness
+        readiness: state.readiness,
+        doseHistory: state.doseHistory,
+        symptomHistory: state.symptomHistory
       }),
     }
   )

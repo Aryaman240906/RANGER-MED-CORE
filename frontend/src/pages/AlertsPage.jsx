@@ -2,20 +2,20 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  ShieldAlert, Radio, CheckCircle2, 
-  Trash2, Filter, AlertTriangle 
+  ShieldAlert, Radio, Trash2, Filter, AlertTriangle 
 } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 
-// --- STORES ---
-import { useDemoStore } from "../store/demoStore";
-import { useTutorialStore } from "../store/tutorialStore"; // 👈 NEW
+// --- HOOKS & STORES ---
+import { useAlertActions } from "../hooks/useDataActions"; // 👈 Section C Hook
+import { useTutorialStore } from "../store/tutorialStore";
+import { useDemoStore } from "../store/demoStore"; // Needed for demoMode flag
 
 // --- COMPONENTS ---
 import AlertCenter from "../components/alerts/AlertCenter";
 import AlertDetailModal from "../components/alerts/AlertDetailModal";
 import AssistantBubble from "../components/ranger/AssistantBubble";
-import TutorialOverlay from "../components/tutorial/TutorialOverlay"; // 👈 NEW
+import TutorialOverlay from "../components/tutorial/TutorialOverlay";
 import ConfettiListener from "../components/global/Confetti";
 
 // --- ANIMATION VARIANTS ---
@@ -31,9 +31,12 @@ const pageVariants = {
 /**
  * 🚨 ALERTS PAGE (MISSION CONTROL)
  * Central command for reviewing system warnings, anomalies, and directives.
+ * * INTEGRATION NOTE:
+ * Uses 'useAlertActions' hook to interface with the central data store.
  */
 export default function AlertsPage() {
-  const { alerts, alertsUnacknowledged, demoMode } = useDemoStore();
+  const { allAlerts, criticalCount } = useAlertActions();
+  const demoMode = useDemoStore(s => s.demoMode);
   const showTutorial = useTutorialStore((s) => s.showForUser);
   
   // Local State
@@ -42,28 +45,30 @@ export default function AlertsPage() {
 
   // --- 1. TUTORIAL TRIGGER ---
   useEffect(() => {
-    // Delay slightly to allow the "Mission Control" animations to settle
     const t = setTimeout(() => {
       showTutorial('alerts', { mode: demoMode ? 'always' : 'once' });
     }, 500);
     return () => clearTimeout(t);
   }, [demoMode, showTutorial]);
 
-  // --- DERIVED STATE ---
+  // --- 2. FILTER LOGIC ---
   const filteredAlerts = useMemo(() => {
-    if (filter === "all") return alerts;
-    return alerts.filter(a => a.severity === filter);
-  }, [alerts, filter]);
+    if (filter === "all") return allAlerts;
+    return allAlerts.filter(a => a.severity === filter);
+  }, [allAlerts, filter]);
 
-  const activeAlert = alerts.find(a => a.id === selectedAlertId);
+  const activeAlert = allAlerts.find(a => a.id === selectedAlertId);
 
-  // --- ASSISTANT CONTEXT ---
+  // --- 3. ASSISTANT CONTEXT ---
   const assistantMessage = useMemo(() => {
-    if (alertsUnacknowledged > 0) {
-      return `ATTENTION: ${alertsUnacknowledged} unacknowledged alerts require immediate review.`;
+    if (criticalCount > 0) {
+      return `CRITICAL WARNING: ${criticalCount} priority incidents detected. Immediate review required.`;
     }
-    return "All systems nominal. Monitoring secure channels.";
-  }, [alertsUnacknowledged]);
+    if (filteredAlerts.length > 0) {
+      return `Status Update: ${filteredAlerts.length} items in current view. Systems stabilizing.`;
+    }
+    return "All systems nominal. Secure channels monitoring for new vectors.";
+  }, [criticalCount, filteredAlerts.length]);
 
   return (
     <div className="min-h-screen bg-[#050b14] relative overflow-hidden flex flex-col p-4 md:p-6 lg:p-8">
@@ -76,7 +81,7 @@ export default function AlertsPage() {
 
       {/* Global Overlays */}
       <ConfettiListener />
-      <TutorialOverlay /> {/* 👈 Tutorial Layer */}
+      <TutorialOverlay /> 
       <Toaster position="top-right" />
 
       {/* 2. MAIN CONTENT */}
@@ -98,9 +103,9 @@ export default function AlertsPage() {
             <div>
               <h1 className="text-2xl font-black text-white tracking-widest uppercase drop-shadow-md flex items-center gap-3">
                 Mission Control
-                {alertsUnacknowledged > 0 && (
+                {criticalCount > 0 && (
                   <span className="text-[10px] bg-red-500 text-black px-2 py-0.5 rounded font-bold animate-pulse">
-                    {alertsUnacknowledged} NEW
+                    {criticalCount} CRITICAL
                   </span>
                 )}
               </h1>
@@ -140,7 +145,7 @@ export default function AlertsPage() {
               data-tour="alert-feed" // 👈 Tutorial Target
               className="flex-1 bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl rounded-2xl overflow-hidden relative shadow-lg flex flex-col"
             >
-               {/* List Component */}
+               {/* List Component (Now receives filtered data) */}
                <AlertCenter 
                  alerts={filteredAlerts} 
                  onSelect={setSelectedAlertId} 

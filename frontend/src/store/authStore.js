@@ -1,91 +1,169 @@
 import { create } from "zustand";
-import api from "../services/api";
+import { 
+  loginUser, 
+  registerUser, 
+  checkEmailExists, 
+  requestPasswordReset, 
+  resetPassword 
+} from "../services/authService";
 
+const STORAGE_KEY_TOKEN = "ranger_auth_token_v1";
+const STORAGE_KEY_USER = "ranger_user_v1";
+
+// 🔄 Helper: Recover session from either Local (Remember Me) or Session storage
 const getInitialState = () => {
-  const token = localStorage.getItem("ranger_token");
-  const user = localStorage.getItem("ranger_user");
+  const localToken = localStorage.getItem(STORAGE_KEY_TOKEN);
+  const sessionToken = sessionStorage.getItem(STORAGE_KEY_TOKEN);
+  const token = localToken || sessionToken;
+
+  const localUser = localStorage.getItem(STORAGE_KEY_USER);
+  const sessionUser = sessionStorage.getItem(STORAGE_KEY_USER);
+  const userStr = localUser || sessionUser;
+
+  let user = null;
+  try {
+    user = userStr ? JSON.parse(userStr) : null;
+  } catch (e) {
+    console.error("Auth state hydration failed:", e);
+  }
 
   return {
-    token: token || null,
-    user: user ? JSON.parse(user) : null,
+    user,
+    token,
     isAuthenticated: !!token,
+    isLoading: false,
+    error: null,
   };
 };
 
 export const useAuthStore = create((set) => ({
   ...getInitialState(),
-  isLoading: false,
-  error: null,
 
-  // LOGIN
-  login: async (email, password) => {
-    set({ isLoading: true, error: null });
+  // --- ACTIONS ---
 
+  /**
+   * CHECK EMAIL (For Register Page)
+   * Doesn't modify global auth state, just returns boolean
+   */
+  checkEmail: async (email) => {
     try {
-      const res = await api.post("/auth/login", { email, password });
-
-      // 🟢 FIX: backend returns { success, data: { token, user } }
-      const token = res.data.data.token;
-      const user = res.data.data.user;
-
-      // Save to localStorage
-      localStorage.setItem("ranger_token", token);
-      localStorage.setItem("ranger_user", JSON.stringify(user));
-
-      set({
-        token,
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-
-      return { ok: true };
-    } catch (err) {
-      const msg = err.response?.data?.message || "Login failed";
-      set({ error: msg, isLoading: false });
-      return { ok: false };
+      return await checkEmailExists(email);
+    } catch (error) {
+      console.warn("Email check skipped:", error);
+      return false; // Fail open (don't block registration on network error)
     }
   },
 
-  // REGISTER
+  /**
+   * LOGIN
+   * Supports 'Remember Me' functionality
+   */
+  login: async (email, password, rememberMe = false) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      const { user, token } = await loginUser({ email, password });
+      
+      // Persistence Logic
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem(STORAGE_KEY_TOKEN, token);
+      storage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
+
+      set({
+        user,
+        token,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null
+      });
+
+      return true;
+    } catch (error) {
+      set({ 
+        isLoading: false, 
+        error: error.message || "Authentication failed" 
+      });
+      throw error; // Re-throw so UI can show toast
+    }
+  },
+
+  /**
+   * REGISTER
+   */
   register: async (formData) => {
     set({ isLoading: true, error: null });
 
     try {
-      const res = await api.post("/auth/register", formData);
+      // formData: { name, email, password, role }
+      const response = await registerUser(formData);
+      
+      // If the backend returns a token immediately, auto-login
+      if (response.token && response.user) {
+        // Default to localStorage for new registrations for better UX
+        localStorage.setItem(STORAGE_KEY_TOKEN, response.token);
+        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(response.user));
 
-      const token = res.data.data.token;
-      const user = res.data.data.user;
+        set({
+          user: response.user,
+          token: response.token,
+          isAuthenticated: true,
+          isLoading: false
+        });
+      } else {
+        // Otherwise just stop loading (user needs to check email or login manually)
+        set({ isLoading: false });
+      }
 
-      localStorage.setItem("ranger_token", token);
-      localStorage.setItem("ranger_user", JSON.stringify(user));
-
-      set({
-        token,
-        user,
-        isAuthenticated: true,
-        isLoading: false,
+      return response;
+    } catch (error) {
+      set({ 
+        isLoading: false, 
+        error: error.message || "Registration failed" 
       });
-
-      return { ok: true };
-    } catch (err) {
-      const msg = err.response?.data?.message || "Registration failed";
-      set({ error: msg, isLoading: false });
-      return { ok: false };
+      throw error;
     }
   },
 
-  // LOGOUT
+  /**
+   * LOGOUT
+   * Clears both storage types to be safe
+   */
   logout: () => {
-    localStorage.removeItem("ranger_token");
-    localStorage.removeItem("ranger_user");
+    localStorage.removeItem(STORAGE_KEY_TOKEN);
+    localStorage.removeItem(STORAGE_KEY_USER);
+    sessionStorage.removeItem(STORAGE_KEY_TOKEN);
+    sessionStorage.removeItem(STORAGE_KEY_USER);
 
     set({
-      token: null,
       user: null,
+      token: null,
       isAuthenticated: false,
-      error: null,
+      error: null
     });
   },
-}));
 
+  /**
+   * PASSWORD RECOVERY FLOWS
+   */
+  requestPasswordReset: async (email) => {
+    set({ isLoading: true, error: null });
+    try {
+      await requestPasswordReset(email);
+      set({ isLoading: false });
+    } catch (error) {
+      set({ isLoading: false, error: error.message });
+      throw error;
+    }
+  },
+
+  resetPassword: async (token, newPassword) => {
+    set({ isLoading: true, error: null });
+    try {
+      await resetPassword({ token, newPassword });
+      set({ isLoading: false });
+    } catch (error) {
+      set({ isLoading: false, error: error.message });
+      throw error;
+    }
+  }
+}));

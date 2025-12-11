@@ -7,14 +7,14 @@ import { Toaster } from "react-hot-toast";
 // --- STORES & SERVICES ---
 import { useDemoStore } from "../store/demoStore";
 import { useAuthStore } from "../store/authStore";
-import { useTutorialStore } from "../store/tutorialStore"; // 👈 NEW: Tutorial Engine
+import { useTutorialStore } from "../store/tutorialStore";
 
 // --- COMPONENTS ---
 import DoseConsole from "../components/dose/DoseConsole";
 import CapsuleHistoryTable from "../components/dose/CapsuleHistoryTable";
 import ConfettiListener from "../components/global/Confetti"; 
 import AssistantBubble from "../components/ranger/AssistantBubble";
-import TutorialOverlay from "../components/tutorial/TutorialOverlay"; // 👈 NEW: Overlay UI
+import TutorialOverlay from "../components/tutorial/TutorialOverlay";
 
 // --- ANIMATION VARIANTS ---
 const pageVariants = {
@@ -38,6 +38,8 @@ const panelVariants = {
  */
 export default function DosePage() {
   const { user } = useAuthStore();
+  
+  // Section C: Use unified store for consistent state
   const { doseStreak, stability, demoMode } = useDemoStore();
   const showTutorial = useTutorialStore((s) => s.showForUser);
   
@@ -131,7 +133,9 @@ export default function DosePage() {
             className="lg:col-span-5 flex flex-col gap-6"
           >
             {/* The Main Action Panel (DoseConsole handles its own internal tutorial targeting) */}
-            <DoseConsole />
+            <div data-tour="dose-console"> 
+              <DoseConsole />
+            </div>
 
             {/* AI Assistant Context */}
             <div className="hidden lg:block">
